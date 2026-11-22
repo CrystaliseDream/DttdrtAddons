@@ -16,35 +16,35 @@ Added Drag Click to all options
 26.2 / 26.3 support
 
 Use /da or press "M" to edit config
-# Removed Rats
+-# Removed Rats
 
 
 v1.0.3 Change Log:
 Market UI rework
-# Removed Rats
+-# Removed Rats
 
 
 v1.0.4 Change Log:
 26.3 Fix
-# Removed Rats
+-# Removed Rats
 
 
 v1.0.5 Change Log:
 Fixed Corpse Costs
-# Removed Rats
+-# Removed Rats
 
 
 v1.0.6 Change Log:
 Winning Streak Counter
 Fast !vote Keybind
 Fixed Market Data
-# Removed Rats
+-# Removed Rats
 
 
 v1.0.7 Change Log:
 Added Backpack Overlay
 Added NameTag
-# Removed Rats
+-# Removed Rats
 
 
 v1.0.8 Change Log:
@@ -52,7 +52,7 @@ Added Freecam
 Added Damage Tracker 
 Added Debug
 Removed some useless features
-# Removed Rats
+-# Removed Rats
 
 
 v1.0.9 Change Log:
@@ -61,7 +61,7 @@ Added Nucleus Runs Temple Cheese Point
 Added Gemstone ESP key bind toggle
 Added Old icon
 Mining Profit Calculation Rework
-# Removed Rats
+-# Removed Rats
 
 
 v1.1.0 Change Log:
@@ -69,7 +69,7 @@ Skip waiting time if all players voted
 Nametag Rework 
 Fixed Mining Profit Calculator
 Added auto check updates
-# Removed Rats
+-# Removed Rats
 
 
 v1.1.1 Change Log:
@@ -80,16 +80,17 @@ New Commands:
 /daretry Retry Verify
 Fixed if no texture
 Transparent effect to 12/24+ blocks Crystal ESP
-# Removed Rats
+-# Removed Rats
 
 
 v1.1.2 Change Log:
 Added Scatha Mining Profit
 Fixed Mining Profit
-# Removed Rats
+-# Removed Rats
 
 
 v1.1.3 Change Log:
 Added Nucleus Runs Profit Tracker - better timer
 Added Stoneworm Shards to Scatha Profit
 DA will check update every time u launch Minecraft and remind u
+-# Removed Rats
