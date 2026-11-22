@@ -1,0 +1,76 @@
+plugins {
+    id 'net.fabricmc.fabric-loom' version "${loom_version}"
+}
+
+version = project.mod_version
+group = project.maven_group
+
+base {
+    archivesName = "${project.archives_base_name}-v${project.mod_version}-mc${project.minecraft_version}"
+}
+
+repositories {
+    mavenCentral()
+    maven {
+        name = 'Fabric'
+        url = 'https://maven.fabricmc.net/'
+    }
+    maven {
+        name = 'TerraformersMC'
+        url = 'https://maven.terraformersmc.com/releases'
+    }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+
+    implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+
+    // ModMenu integration (optional)
+    compileOnly("com.terraformersmc:modmenu:20.0.1") {
+        exclude(group: "net.fabricmc.fabric-api")
+    }
+
+    testImplementation "org.junit.jupiter:junit-jupiter:5.11.4"
+    testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+}
+
+processResources {
+    def replaceProperties = [
+            version           : project.version,
+            minecraft_version : project.minecraft_version,
+            loader_version    : project.loader_version,
+    ]
+    inputs.properties replaceProperties
+    filteringCharset = "UTF-8"
+
+    filesMatching("fabric.mod.json") {
+        expand replaceProperties
+    }
+}
+
+def targetJavaVersion = 25
+tasks.withType(JavaCompile).configureEach {
+    it.options.encoding = "UTF-8"
+    it.options.release = targetJavaVersion
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(targetJavaVersion)
+    }
+    withSourcesJar()
+}
+
+tasks.named("test") {
+    useJUnitPlatform()
+}
+
+jar {
+    from("LICENSE") {
+        rename { "${it}_DttdrtAddons" }
+    }
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+

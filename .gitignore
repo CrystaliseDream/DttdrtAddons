@@ -1,0 +1,18 @@
+# Build outputs & extracted libs
+build/
+out/
+*.jar
+
+# Gradle / IDE / runtime caches
+.gradle/
+.idea/
+.vscode/
+*.iml
+run/
+*.log
+
+# Local temporary dirs & machine-specific build/preview scripts
+temp/
+/assets/
+*.ps1
+*.bat
