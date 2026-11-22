@@ -10,7 +10,7 @@
   "contact": {
     "homepage": ""
   },
-  "license": "MIT",
+  "license": "GPL-3.0-or-later",
   "environment": "client",
   "icon": "assets/dttdrtaddons/icon.png",
   "entrypoints": {
@@ -30,4 +30,3 @@
     "fabric-api": "*"
   }
 }
-
