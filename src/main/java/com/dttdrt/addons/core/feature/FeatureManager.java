@@ -57,6 +57,7 @@ public class FeatureManager {
         cfg.crystalHollowsMapEnabled = false;
         cfg.partyVoteEnabled = false;
         cfg.damageTrackerEnabled = false;
+        cfg.customNameEnabled = false;
         ModConfig.save();
     }
 }

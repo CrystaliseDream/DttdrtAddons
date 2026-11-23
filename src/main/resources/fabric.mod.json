@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "dttdrtaddons",
-  "version": "1.1.4",
+  "version": "1.1.5",
   "name": "DttdrtAddons",
   "description": "Hypixel Skyblock AH/BZ market monitor with classic textures and zero-packet safe client features.",
   "authors": [

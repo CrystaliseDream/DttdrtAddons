@@ -20,7 +20,20 @@
     "ScreenChangeMixin",
     "SlotMixin",
     "accessor.AvatarRendererInvoker",
-    "accessor.ClientInputAccessor"
+    "accessor.ClientInputAccessor",
+    "accessor.RenderPipelinesAccessor",
+    "accessor.RenderTypeAccessor",
+    "accessor.TextColorAccessor",
+    "chroma.ChromaBufferSourceMixin",
+    "chroma.ChromaGlyphInstanceMixin",
+    "chroma.ChromaGlyphRenderTypesMixin",
+    "chroma.ChromaGuiRendererMixin",
+    "chroma.ChromaPreparedTextBuilderMixin",
+    "chroma.ChromaRenderSystemMixin",
+    "chroma.ChromaRenderTypeMixin",
+    "chroma.ChromaStringDecomposerMixin",
+    "chroma.ChromaTextColorMixin",
+    "chroma.CustomNameFontMixin"
   ],
   "injectors": {
     "defaultRequire": 1

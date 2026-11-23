@@ -7,6 +7,7 @@ import com.dttdrt.addons.core.config.ModConfig;
 import com.dttdrt.addons.core.feature.FeatureManager;
 import com.dttdrt.addons.core.lang.ModLang;
 import com.dttdrt.addons.core.log.ModLogManager;
+import com.dttdrt.addons.features.custom.CustomNameFeature;
 import com.dttdrt.addons.features.freecam.FreeCamFeature;
 import com.dttdrt.addons.features.market.MarketState;
 import com.dttdrt.addons.features.market.model.AhItemListing;
@@ -43,6 +44,7 @@ import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
+import net.minecraft.util.FormattedCharSequence;
 
 import java.awt.Color;
 import java.lang.reflect.Method;
@@ -123,6 +125,29 @@ public class DttdrtMainScreen extends Screen {
             0xFFEF4444, // Crimson
             0xFFFFFF55, // Yellow
             0xFFFFFFFF  // White
+    };
+
+    private static final int[] MC_16_COLOR_PRESETS = new int[]{
+            0xFF000000, // 0 Black
+            0xFF0000AA, // 1 Dark Blue
+            0xFF00AA00, // 2 Dark Green
+            0xFF00AAAA, // 3 Dark Aqua
+            0xFFAA0000, // 4 Dark Red
+            0xFFAA00AA, // 5 Dark Purple
+            0xFFFFAA00, // 6 Gold
+            0xFFAAAAAA, // 7 Gray
+            0xFF555555, // 8 Dark Gray
+            0xFF5555FF, // 9 Blue
+            0xFF55FF55, // a Green
+            0xFF55FFFF, // b Aqua
+            0xFFFF5555, // c Red
+            0xFFFF55FF, // d Light Purple
+            0xFFFFFF55, // e Yellow
+            0xFFFFFFFF  // f White
+    };
+
+    private static final String[] CHROMA_DIRECTIONS = new String[]{
+            "FORWARD_RIGHT", "FORWARD_LEFT", "BACKWARD_RIGHT", "BACKWARD_LEFT"
     };
 
     // Exact SettingsPanel.cs constants (1080p virtual coordinates)
@@ -208,10 +233,18 @@ public class DttdrtMainScreen extends Screen {
     private float nametagPaletteHue = 0.91f;
     private float nametagPaletteSat = 0.59f;
     private float nametagPaletteVal = 1.0f;
-    private int draggingPaletteMode = 0; // 0=none, 1=SV box, 2=Hue bar
+    private int draggingPaletteMode = 0; // 0=none, 1=Nametag SV, 2=Nametag Hue, 3=CustomName SV, 4=CustomName Hue
     private int palSvSec = -1;
     private int palSvX = 0, palSvY = 0, palSvW = 0, palSvH = 0;
     private int palHueX = 0, palHueY = 0, palHueW = 0, palHueH = 0;
+
+    // Custom Name HSV color palette state
+    private float customNamePaletteHue = 0.83f;
+    private float customNamePaletteSat = 0.67f;
+    private float customNamePaletteVal = 1.0f;
+    private int namePalSvSec = -1;
+    private int namePalSvX = 0, namePalSvY = 0, namePalSvW = 0, namePalSvH = 0;
+    private int namePalHueX = 0, namePalHueY = 0, namePalHueW = 0, namePalHueH = 0;
 
     // MC 26.3+ SDL3 TextInputManager reflection bridge (startTextInput/stopTextInput so charTyped fires)
     private static boolean textInputReflectInit = false;
@@ -290,6 +323,7 @@ public class DttdrtMainScreen extends Screen {
         this.capturingKeybindId = 0;
         this.draggingPaletteMode = 0;
         syncPaletteHsvFromColor(ModConfig.getInstance().nametagColor);
+        syncCustomNamePaletteHsvFromColor(ModConfig.getInstance().customNameColor);
         this.nativeTextInputActive = false;
         this.searchCaretX = TorusFontRenderer.measureWidth(Weight.REGULAR, this.settingsSearchText, 16f);
         this.searchCaretAlpha = 1.0f;
@@ -546,7 +580,7 @@ public class DttdrtMainScreen extends Screen {
             }
         }
         if (draggingPaletteMode != 0 && this.minecraft != null) {
-            applyNametagPaletteDrag(exactMouseX, toVirtY(mouseY), cfg);
+            applyPaletteDrag(exactMouseX, toVirtY(mouseY), cfg);
         }
 
         if (dragToggleActive && this.minecraft != null) {
@@ -631,6 +665,7 @@ public class DttdrtMainScreen extends Screen {
         drawerButtons.clear();
         drawerSliders.clear();
         palSvSec = -1;
+        namePalSvSec = -1;
         drawerInputs.clear();
 
         if (panelX + PANEL_W > 0) {
@@ -1233,10 +1268,12 @@ public class DttdrtMainScreen extends Screen {
                 "Storage", "EC", "BP", "Ender", "Chest", "Backpack", "Preview", "Overlay", "Tooltip", "Outline", "Search",
                 "Mineshaft", "Streak", "Announce", "Message",
                 "Nametag", "Distance", "Palette", "Color", "Other",
+                "Name", "Nickname", "Chroma", "Rainbow", "Bold", "Italic", "Underline", "Shader", "Speed", "Size", "Saturation", "Direction",
                 "FreeCam", "Camera", "Spectator", "Fly", "HUD",
                 "dttdrtaddons.custom.top_line_header", "dttdrtaddons.custom.bg_header", "dttdrtaddons.custom.display_header",
                 "dttdrtaddons.custom.keybind_header", "dttdrtaddons.custom.streak_header", "dttdrtaddons.custom.storage_header",
-                "dttdrtaddons.custom.nametag_header", "dttdrtaddons.custom.nametag_color", "dttdrtaddons.custom.freecam_header");
+                "dttdrtaddons.custom.nametag_header", "dttdrtaddons.custom.nametag_color",
+                "dttdrtaddons.custom.name_header", "dttdrtaddons.custom.chroma_header", "dttdrtaddons.custom.freecam_header");
         if (customMatches) {
             GuiBatchHelper.beginScope(g);
             sectionStartY[3] = curY - baseOriginY;
@@ -1442,6 +1479,51 @@ public class DttdrtMainScreen extends Screen {
                 if (matchesFilter("Custom", "dttdrtaddons.section.custom", "Nametag", "Palette", "Color", "dttdrtaddons.custom.nametag_color")) {
                     curY = renderNametagColorPalette(g, 3, x, curY, w, viewTop, viewBottom, mouseX, mouseY);
                 }
+                curY += 10;
+            }
+
+            if (matchesFilter("Custom", "dttdrtaddons.section.custom", "Name", "Nickname", "Color", "Chroma", "Rainbow",
+                    "Bold", "Italic", "Underline", "Visual",
+                    "dttdrtaddons.custom.name_header", "dttdrtaddons.custom.name_enable",
+                    "dttdrtaddons.custom.name_input_label", "dttdrtaddons.custom.name_visual_title")) {
+                curY = drawSubsectionHeader(g, x, curY, ModLang.tr("dttdrtaddons.custom.name_header"), viewTop, viewBottom);
+                if (matchesFilter("Custom", "dttdrtaddons.section.custom", "Name", "Nickname", "dttdrtaddons.custom.name_enable")) {
+                    curY = drawFormCheckBox(g, 3, "custom_name_enabled", x, curY, w, ModLang.tr("dttdrtaddons.custom.name_enable"), 0,
+                            cfg.customNameEnabled, v -> cfg.customNameEnabled = v, viewTop, viewBottom, mouseX, mouseY, dt);
+                    curY += ITEM_SPACING_V2;
+                }
+                if (matchesFilter("Custom", "dttdrtaddons.section.custom", "Name", "Nickname", "Input",
+                        "dttdrtaddons.custom.name_input_label")) {
+                    if (isVisible(curY, 20, viewTop, viewBottom)) {
+                        TorusFontRenderer.drawFittedString(g, Weight.REGULAR, ModLang.tr("dttdrtaddons.custom.name_input_label"),
+                                x + 2, curY, w - 4, 20f, 13f, 9.5f, 13.5f, OSU_CONTENT2);
+                    }
+                    curY += 20;
+
+                    int rstNameW = 70;
+                    int nameBoxW = w - rstNameW - 6;
+                    drawDrawerTextBox(g, 3, 9, x, curY, nameBoxW, 34, cfg.customNameText,
+                            ModLang.tr("dttdrtaddons.custom.name_placeholder"), viewTop, viewBottom, mouseX, mouseY);
+                    curY = drawSettingsButtonV2(g, 3, x + nameBoxW + 6, curY, rstNameW, 34, ModLang.tr("dttdrtaddons.common.reset"), OSU_BG3,
+                            viewTop, viewBottom, mouseX, mouseY, () -> {
+                                cfg.customNameText = "";
+                                ModConfig.save();
+                            });
+                    curY += ITEM_SPACING_V2;
+                }
+                if (matchesFilter("Custom", "dttdrtaddons.section.custom", "Name", "Nickname", "Color", "Chroma", "Rainbow",
+                        "Bold", "Italic", "Underline", "Visual", "dttdrtaddons.custom.name_visual_title")) {
+                    curY = renderCustomNameVisualCard(g, 3, x, curY, w, viewTop, viewBottom, mouseX, mouseY);
+                }
+                curY += 10;
+            }
+
+            if (matchesFilter("Custom", "dttdrtaddons.section.custom", "Chroma", "Rainbow", "Shader", "Speed", "Size",
+                    "Saturation", "Direction", "§z",
+                    "dttdrtaddons.custom.chroma_header", "dttdrtaddons.custom.chroma_enable",
+                    "dttdrtaddons.custom.chroma_speed", "dttdrtaddons.custom.chroma_size",
+                    "dttdrtaddons.custom.chroma_saturation", "dttdrtaddons.custom.chroma_direction")) {
+                curY = renderChromaSection(g, 3, x, curY, w, viewTop, viewBottom, mouseX, mouseY, dt);
                 curY += 10;
             }
 
@@ -1978,16 +2060,71 @@ public class DttdrtMainScreen extends Screen {
         this.nametagPaletteVal = hsb[2];
     }
 
-    private void applyNametagPaletteDrag(double mx, double my, ModConfig cfg) {
+    private void syncCustomNamePaletteHsvFromColor(int argb) {
+        int r = (argb >>> 16) & 0xFF;
+        int g = (argb >>> 8) & 0xFF;
+        int b = argb & 0xFF;
+        float[] hsb = Color.RGBtoHSB(r, g, b, null);
+        this.customNamePaletteHue = hsb[0];
+        this.customNamePaletteSat = hsb[1];
+        this.customNamePaletteVal = hsb[2];
+    }
+
+    private void applyPaletteDrag(double mx, double my, ModConfig cfg) {
         if (draggingPaletteMode == 1 && palSvW > 0 && palSvH > 0) {
             nametagPaletteSat = (float) Math.max(0.0, Math.min(1.0, (mx - palSvX) / (double) palSvW));
             nametagPaletteVal = (float) Math.max(0.0, Math.min(1.0, 1.0 - (my - palSvY) / (double) palSvH));
+            cfg.nametagColor = Color.HSBtoRGB(nametagPaletteHue, nametagPaletteSat, nametagPaletteVal) | 0xFF000000;
         } else if (draggingPaletteMode == 2 && palHueH > 0) {
             nametagPaletteHue = (float) Math.max(0.0, Math.min(0.9999, (my - palHueY) / (double) palHueH));
-        } else {
-            return;
+            cfg.nametagColor = Color.HSBtoRGB(nametagPaletteHue, nametagPaletteSat, nametagPaletteVal) | 0xFF000000;
+        } else if (draggingPaletteMode == 3 && namePalSvW > 0 && namePalSvH > 0) {
+            customNamePaletteSat = (float) Math.max(0.0, Math.min(1.0, (mx - namePalSvX) / (double) namePalSvW));
+            customNamePaletteVal = (float) Math.max(0.0, Math.min(1.0, 1.0 - (my - namePalSvY) / (double) namePalSvH));
+            cfg.customNameColorMode = "SOLID";
+            cfg.customNameColor = Color.HSBtoRGB(customNamePaletteHue, customNamePaletteSat, customNamePaletteVal) | 0xFF000000;
+        } else if (draggingPaletteMode == 4 && namePalHueH > 0) {
+            customNamePaletteHue = (float) Math.max(0.0, Math.min(0.9999, (my - namePalHueY) / (double) namePalHueH));
+            cfg.customNameColorMode = "SOLID";
+            cfg.customNameColor = Color.HSBtoRGB(customNamePaletteHue, customNamePaletteSat, customNamePaletteVal) | 0xFF000000;
         }
-        cfg.nametagColor = Color.HSBtoRGB(nametagPaletteHue, nametagPaletteSat, nametagPaletteVal) | 0xFF000000;
+    }
+
+    private void drawHsvPaletteWidget(GuiGraphicsExtractor g, int innerX, int palY, int svW, int palH,
+                                      int hueX, int hueW, float hue, float sat, float val, int curColor) {
+        int cols = 28;
+        int rows = 16;
+        float cellW = svW / (float) cols;
+        float cellH = palH / (float) rows;
+        for (int row = 0; row < rows; row++) {
+            float v = 1.0f - (row + 0.5f) / rows;
+            float cy = palY + row * cellH;
+            for (int col = 0; col < cols; col++) {
+                float s = (col + 0.5f) / cols;
+                int cellCol = Color.HSBtoRGB(hue, s, v) | 0xFF000000;
+                OsuUiRenderer.drawSolidRectF(g, innerX + col * cellW, cy, cellW + 0.6f, cellH + 0.6f, cellCol);
+            }
+        }
+        OsuUiRenderer.drawRoundedBorder(g, innerX - 1, palY - 1, svW + 2, palH + 2, 3, OSU_BG6);
+
+        int dotX = innerX + Math.round(sat * svW) - 5;
+        int dotY = palY + Math.round((1.0f - val) * palH) - 5;
+        OsuUiRenderer.drawCircle(g, dotX - 1, dotY - 1, 12, 0xFF000000);
+        OsuUiRenderer.drawCircle(g, dotX, dotY, 10, 0xFFFFFFFF);
+        OsuUiRenderer.drawCircle(g, dotX + 2, dotY + 2, 6, curColor);
+
+        int hueSlices = 36;
+        float sliceH = palH / (float) hueSlices;
+        for (int i = 0; i < hueSlices; i++) {
+            float h = (i + 0.5f) / hueSlices;
+            int hCol = Color.HSBtoRGB(h, 1.0f, 1.0f) | 0xFF000000;
+            OsuUiRenderer.drawSolidRectF(g, hueX, palY + i * sliceH, hueW, sliceH + 0.6f, hCol);
+        }
+        OsuUiRenderer.drawRoundedBorder(g, hueX - 1, palY - 1, hueW + 2, palH + 2, 3, OSU_BG6);
+
+        int hueBarY = palY + Math.round(hue * (palH - 4));
+        OsuUiRenderer.drawRoundedRect(g, hueX - 2, hueBarY - 1, hueW + 4, 6, 2, 0xFFFFFFFF);
+        OsuUiRenderer.drawRoundedRect(g, hueX, hueBarY, hueW, 4, 1, Color.HSBtoRGB(hue, 1.0f, 1.0f) | 0xFF000000);
     }
 
     private int renderNametagColorPalette(GuiGraphicsExtractor g, int secIdx, int x, int y, int w,
@@ -2056,40 +2193,9 @@ public class DttdrtMainScreen extends Screen {
             this.palHueH = palH;
 
             int cols = 28;
-            int rows = 16;
-            float cellW = svW / (float) cols;
-            float cellH = palH / (float) rows;
-            for (int row = 0; row < rows; row++) {
-                float val = 1.0f - (row + 0.5f) / rows;
-                float cy = palY + row * cellH;
-                for (int col = 0; col < cols; col++) {
-                    float sat = (col + 0.5f) / cols;
-                    int cellCol = Color.HSBtoRGB(nametagPaletteHue, sat, val) | 0xFF000000;
-                    OsuUiRenderer.drawSolidRectF(g, innerX + col * cellW, cy, cellW + 0.6f, cellH + 0.6f, cellCol);
-                }
-            }
-            OsuUiRenderer.drawRoundedBorder(g, innerX - 1, palY - 1, svW + 2, palH + 2, 3, OSU_BG6);
-
-            // Selected (S, V) ring marker
-            int dotX = innerX + Math.round(nametagPaletteSat * svW) - 5;
-            int dotY = palY + Math.round((1.0f - nametagPaletteVal) * palH) - 5;
-            OsuUiRenderer.drawCircle(g, dotX - 1, dotY - 1, 12, 0xFF000000);
-            OsuUiRenderer.drawCircle(g, dotX, dotY, 10, 0xFFFFFFFF);
-            OsuUiRenderer.drawCircle(g, dotX + 2, dotY + 2, 6, curColor);
-
-            // Rainbow Hue Bar
-            int hueSlices = 36;
-            float sliceH = palH / (float) hueSlices;
-            for (int i = 0; i < hueSlices; i++) {
-                float h = (i + 0.5f) / hueSlices;
-                int hCol = Color.HSBtoRGB(h, 1.0f, 1.0f) | 0xFF000000;
-                OsuUiRenderer.drawSolidRectF(g, hueX, palY + i * sliceH, hueW, sliceH + 0.6f, hCol);
-            }
-            OsuUiRenderer.drawRoundedBorder(g, hueX - 1, palY - 1, hueW + 2, palH + 2, 3, OSU_BG6);
-
-            int hueBarY = palY + Math.round(nametagPaletteHue * (palH - 4));
-            OsuUiRenderer.drawRoundedRect(g, hueX - 2, hueBarY - 1, hueW + 4, 6, 2, 0xFFFFFFFF);
-            OsuUiRenderer.drawRoundedRect(g, hueX, hueBarY, hueW, 4, 1, Color.HSBtoRGB(nametagPaletteHue, 1.0f, 1.0f) | 0xFF000000);
+            // Render shared 2D SV + Hue palette
+            drawHsvPaletteWidget(g, innerX, palY, svW, palH, hueX, hueW,
+                    nametagPaletteHue, nametagPaletteSat, nametagPaletteVal, curColor);
 
             // Row 4: Live sample nametag preview strip
             int sampleY = palY + palH + 6;
@@ -2100,6 +2206,230 @@ public class DttdrtMainScreen extends Screen {
             }
         }
         return y + cardH;
+    }
+
+    private void drawVanillaTextPreview(GuiGraphicsExtractor g, FormattedCharSequence seq, int x, int y, int maxWidth, float scale) {
+        if (this.minecraft == null || this.minecraft.font == null || seq == null) {
+            return;
+        }
+        GuiBatchHelper.flushScope(g);
+        int rawW = Math.max(1, this.minecraft.font.width(seq));
+        float fitScale = Math.min(scale, maxWidth / (float) rawW);
+        int yOff = Math.round((9.0f * (scale - fitScale)) * 0.5f);
+        g.pose().pushMatrix();
+        g.pose().translate(x, y + yOff);
+        g.pose().scale(fitScale, fitScale);
+        g.text(this.minecraft.font, seq, 0, 0, 0xFFFFFFFF, true);
+        g.pose().popMatrix();
+    }
+
+    private int renderCustomNameVisualCard(GuiGraphicsExtractor g, int secIdx, int x, int y, int w,
+                                           int viewTop, int viewBottom, int mouseX, int mouseY) {
+        int cardH = 290;
+        if (isVisible(y, cardH, viewTop, viewBottom)) {
+            ModConfig cfg = ModConfig.getInstance();
+            boolean isChroma = "CHROMA".equalsIgnoreCase(cfg.customNameColorMode);
+            int curColor = cfg.customNameColor | 0xFF000000;
+
+            OsuUiRenderer.drawRoundedRect(g, x, y, w, cardH, 6, OSU_BG4_DARK);
+
+            int pad = 10;
+            int innerX = x + pad;
+            int innerW = w - pad * 2;
+
+            // Row 1: Title + Live Minecraft Font Preview Pill
+            String title = ModLang.tr("dttdrtaddons.custom.name_visual_title");
+            TorusFontRenderer.drawFittedString(g, Weight.REGULAR, title,
+                    innerX, y + 8, innerW - 180, 20f, 13.5f, 9.5f, 14f, OSU_CONTENT2);
+
+            int previewW = 172;
+            int previewX = x + w - pad - previewW;
+            OsuUiRenderer.drawRoundedRect(g, previewX, y + 6, previewW, 24, 4, OSU_BG5);
+            OsuUiRenderer.drawRoundedBorder(g, previewX, y + 6, previewW, 24, 4, OSU_BG6);
+            drawVanillaTextPreview(g, CustomNameFeature.buildPreviewSequence(), previewX + 8, y + 12, previewW - 16, 1.25f);
+
+            // Row 2: Animated Rainbow Chroma Card Button
+            int chromaY = y + 36;
+            int chromaH = 26;
+            boolean chromaHover = (secIdx == activeSectionIdx) && isInside(mouseX, mouseY, innerX, chromaY, innerW, chromaH);
+            if (chromaHover) markHover("cn_chroma", 2);
+            if (isChroma || chromaHover) {
+                OsuUiRenderer.drawRoundedRect(g, innerX - 2, chromaY - 2, innerW + 4, chromaH + 4, 6, isChroma ? OSU_CONTENT1 : OSU_LIGHT4);
+            }
+            int slices = 36;
+            float sliceW = innerW / (float) slices;
+            float phase = (System.currentTimeMillis() % 4000L) / 4000.0f;
+            for (int i = 0; i < slices; i++) {
+                float h = (phase + i / (float) slices) % 1.0f;
+                int c = Color.HSBtoRGB(h, Math.max(0.45f, cfg.chromaSaturation), 0.90f) | 0xFF000000;
+                OsuUiRenderer.drawSolidRectF(g, innerX + i * sliceW, chromaY, sliceW + 0.6f, chromaH, c);
+            }
+            OsuUiRenderer.drawRoundedRect(g, innerX, chromaY, innerW, chromaH, 4, 0x55000000);
+            TorusFontRenderer.drawCenteredString(g, Weight.BOLD, ModLang.tr("dttdrtaddons.custom.name_chroma_btn"),
+                    innerX + innerW * 0.5f, chromaY + 6, 13.5f, 0xFFFFFFFF);
+            drawerButtons.add(new ButtonHitbox(secIdx, innerX, chromaY, innerW, chromaH, () -> {
+                cfg.customNameColorMode = "CHROMA";
+                ModConfig.save();
+            }));
+
+            // Row 3 & 4: Classic 16 MC Color Swatches (2 rows x 8 cols)
+            int gridY = chromaY + chromaH + 8;
+            int swatchGap = 5;
+            int colsPerRow = 8;
+            int swatchW = (innerW - (colsPerRow - 1) * swatchGap) / colsPerRow;
+            int swatchH = 20;
+            for (int i = 0; i < MC_16_COLOR_PRESETS.length; i++) {
+                int rIdx = i / colsPerRow;
+                int cIdx = i % colsPerRow;
+                int sx = innerX + cIdx * (swatchW + swatchGap);
+                int sy = gridY + rIdx * (swatchH + 5);
+                int pCol = MC_16_COLOR_PRESETS[i];
+                boolean active = !isChroma && ((curColor & 0x00FFFFFF) == (pCol & 0x00FFFFFF));
+                boolean hover = (secIdx == activeSectionIdx) && isInside(mouseX, mouseY, sx, sy, swatchW, swatchH);
+                if (hover) markHover("cn_mc_" + i, 3);
+                if (active || hover) {
+                    OsuUiRenderer.drawRoundedRect(g, sx - 2, sy - 2, swatchW + 4, swatchH + 4, 5, active ? OSU_CONTENT1 : OSU_LIGHT4);
+                }
+                OsuUiRenderer.drawRoundedRect(g, sx, sy, swatchW, swatchH, 4, pCol);
+                drawerButtons.add(new ButtonHitbox(secIdx, sx, sy, swatchW, swatchH, () -> {
+                    cfg.customNameColorMode = "SOLID";
+                    cfg.customNameColor = pCol | 0xFF000000;
+                    syncCustomNamePaletteHsvFromColor(cfg.customNameColor);
+                    ModConfig.save();
+                }));
+            }
+
+            // Row 5: Formatting Style Toggles (Bold / Italic / Underline)
+            int fmtY = gridY + 2 * swatchH + 12;
+            int fmtH = 26;
+            int fmtGap = 6;
+            int fmtW = (innerW - 2 * fmtGap) / 3;
+            drawStyleTogglePill(g, secIdx, "cn_bold", innerX, fmtY, fmtW, fmtH,
+                    ModLang.tr("dttdrtaddons.custom.name_bold"), cfg.customNameBold, mouseX, mouseY, () -> {
+                        cfg.customNameBold = !cfg.customNameBold;
+                        ModConfig.save();
+                    });
+            drawStyleTogglePill(g, secIdx, "cn_italic", innerX + fmtW + fmtGap, fmtY, fmtW, fmtH,
+                    ModLang.tr("dttdrtaddons.custom.name_italic"), cfg.customNameItalic, mouseX, mouseY, () -> {
+                        cfg.customNameItalic = !cfg.customNameItalic;
+                        ModConfig.save();
+                    });
+            drawStyleTogglePill(g, secIdx, "cn_under", innerX + (fmtW + fmtGap) * 2, fmtY,
+                    innerW - (fmtW + fmtGap) * 2, fmtH,
+                    ModLang.tr("dttdrtaddons.custom.name_underline"), cfg.customNameUnderlined, mouseX, mouseY, () -> {
+                        cfg.customNameUnderlined = !cfg.customNameUnderlined;
+                        ModConfig.save();
+                    });
+
+            // Row 6: Free 2D HSV Color Picker (SV Box + Hue Bar)
+            int palY = fmtY + fmtH + 10;
+            int palH = 88;
+            int hueW = 24;
+            int gap = 8;
+            int svW = innerW - hueW - gap;
+            int hueX = innerX + svW + gap;
+
+            this.namePalSvSec = secIdx;
+            this.namePalSvX = innerX;
+            this.namePalSvY = palY;
+            this.namePalSvW = svW;
+            this.namePalSvH = palH;
+            this.namePalHueX = hueX;
+            this.namePalHueY = palY;
+            this.namePalHueW = hueW;
+            this.namePalHueH = palH;
+
+            drawHsvPaletteWidget(g, innerX, palY, svW, palH, hueX, hueW,
+                    customNamePaletteHue, customNamePaletteSat, customNamePaletteVal, curColor);
+
+            // Bottom strip: hex badge or CHROMA tag
+            int footY = palY + palH + 6;
+            String badge = isChroma ? "MODE: CHROMA (§z)" : String.format(Locale.ROOT, "HEX #%06X", curColor & 0x00FFFFFF);
+            TorusFontRenderer.drawString(g, Weight.SEMIBOLD, badge, innerX, footY, 12f, isChroma ? OSU_COLOUR1 : curColor);
+        }
+        return y + cardH;
+    }
+
+    private void drawStyleTogglePill(GuiGraphicsExtractor g, int secIdx, String hoverKey, int x, int y, int w, int h,
+                                     String label, boolean active, int mouseX, int mouseY, Runnable onClick) {
+        boolean hover = (secIdx == activeSectionIdx) && isInside(mouseX, mouseY, x, y, w, h);
+        if (hover) markHover(hoverKey, 2);
+        int bg = active ? OSU_COLOUR1 : (hover ? OSU_DARK4 : OSU_BG5);
+        OsuUiRenderer.drawRoundedRect(g, x, y, w, h, 5, bg);
+        if (!active && hover) {
+            OsuUiRenderer.drawRoundedBorder(g, x, y, w, h, 5, OSU_LIGHT4);
+        }
+        TorusFontRenderer.drawCenteredString(g, active ? Weight.BOLD : Weight.REGULAR, label,
+                x + w * 0.5f, y + (h - 13) * 0.5f, 12.5f, active ? 0xFFFFFFFF : OSU_CONTENT2);
+        drawerButtons.add(new ButtonHitbox(secIdx, x, y, w, h, onClick));
+    }
+
+    private int renderChromaSection(GuiGraphicsExtractor g, int secIdx, int x, int curY, int w,
+                                    int viewTop, int viewBottom, int mouseX, int mouseY, float dt) {
+        ModConfig cfg = ModConfig.getInstance();
+        curY = drawSubsectionHeader(g, x, curY, ModLang.tr("dttdrtaddons.custom.chroma_header"), viewTop, viewBottom);
+
+        if (matchesFilter("Custom", "dttdrtaddons.section.custom", "Chroma", "Enable", "§z", "dttdrtaddons.custom.chroma_enable")) {
+            curY = drawFormCheckBox(g, secIdx, "chroma_enabled", x, curY, w, ModLang.tr("dttdrtaddons.custom.chroma_enable"), 0,
+                    cfg.chromaEnabled, v -> cfg.chromaEnabled = v, viewTop, viewBottom, mouseX, mouseY, dt);
+            curY += ITEM_SPACING_V2;
+        }
+
+        // Live §z sample preview strip
+        int prevH = 28;
+        if (isVisible(curY, prevH, viewTop, viewBottom)) {
+            OsuUiRenderer.drawRoundedRect(g, x, curY, w, prevH, 5, OSU_BG4_DARK);
+            OsuUiRenderer.drawRoundedBorder(g, x, curY, w, prevH, 5, OSU_BG6);
+            drawVanillaTextPreview(g, CustomNameFeature.buildChromaSampleSequence(), x + 10, curY + 7, w - 20, 1.3f);
+        }
+        curY += prevH + ITEM_SPACING_V2;
+
+        if (matchesFilter("Custom", "dttdrtaddons.section.custom", "Chroma", "Speed", "dttdrtaddons.custom.chroma_speed")) {
+            curY = drawFormSliderBar(g, secIdx, 10, x, curY, w, ModLang.tr("dttdrtaddons.custom.chroma_speed"),
+                    String.format(Locale.ROOT, "%.1f", cfg.chromaSpeed),
+                    (cfg.chromaSpeed - 0.5) / 19.5, (6.0 - 0.5) / 19.5,
+                    Math.abs(cfg.chromaSpeed - 6.0f) < 0.05f, viewTop, viewBottom, mouseX, mouseY, dt);
+            curY += ITEM_SPACING_V2;
+        }
+        if (matchesFilter("Custom", "dttdrtaddons.section.custom", "Chroma", "Size", "dttdrtaddons.custom.chroma_size")) {
+            curY = drawFormSliderBar(g, secIdx, 11, x, curY, w, ModLang.tr("dttdrtaddons.custom.chroma_size"),
+                    String.format(Locale.ROOT, "%d", Math.round(cfg.chromaSize)),
+                    (cfg.chromaSize - 5.0) / 95.0, (30.0 - 5.0) / 95.0,
+                    Math.round(cfg.chromaSize) == 30, viewTop, viewBottom, mouseX, mouseY, dt);
+            curY += ITEM_SPACING_V2;
+        }
+        if (matchesFilter("Custom", "dttdrtaddons.section.custom", "Chroma", "Saturation", "dttdrtaddons.custom.chroma_saturation")) {
+            int satPct = Math.round(cfg.chromaSaturation * 100.0f);
+            curY = drawFormSliderBar(g, secIdx, 12, x, curY, w, ModLang.tr("dttdrtaddons.custom.chroma_saturation"),
+                    satPct + "%",
+                    cfg.chromaSaturation, 0.75,
+                    satPct == 75, viewTop, viewBottom, mouseX, mouseY, dt);
+            curY += ITEM_SPACING_V2;
+        }
+        if (matchesFilter("Custom", "dttdrtaddons.section.custom", "Chroma", "Direction", "dttdrtaddons.custom.chroma_direction")) {
+            String dirLabel = getChromaDirectionLabel(cfg.chromaDirection);
+            curY = drawSettingsButtonV2(g, secIdx, x, curY, w, 32,
+                    ModLang.tr("dttdrtaddons.custom.chroma_direction", dirLabel), OSU_BG4_DARK,
+                    viewTop, viewBottom, mouseX, mouseY, () -> {
+                        int idx = 0;
+                        for (int i = 0; i < CHROMA_DIRECTIONS.length; i++) {
+                            if (CHROMA_DIRECTIONS[i].equalsIgnoreCase(cfg.chromaDirection)) {
+                                idx = (i + 1) % CHROMA_DIRECTIONS.length;
+                                break;
+                            }
+                        }
+                        cfg.chromaDirection = CHROMA_DIRECTIONS[idx];
+                        ModConfig.save();
+                    });
+        }
+        return curY;
+    }
+
+    private static String getChromaDirectionLabel(String dir) {
+        if ("FORWARD_LEFT".equalsIgnoreCase(dir)) return ModLang.tr("dttdrtaddons.custom.chroma_dir_fl");
+        if ("BACKWARD_RIGHT".equalsIgnoreCase(dir)) return ModLang.tr("dttdrtaddons.custom.chroma_dir_br");
+        if ("BACKWARD_LEFT".equalsIgnoreCase(dir)) return ModLang.tr("dttdrtaddons.custom.chroma_dir_bl");
+        return ModLang.tr("dttdrtaddons.custom.chroma_dir_fr");
     }
 
     private int renderDrawerChWaypointRow(GuiGraphicsExtractor g, int secIdx, int x, int y, int w, int viewTop, int viewBottom,
@@ -2220,6 +2550,18 @@ public class DttdrtMainScreen extends Screen {
             case 9 -> {
                 cfg.freecamSpeed = (float) (Math.round((0.25 + norm * 5.75) * 20.0) / 20.0);
                 norm = (cfg.freecamSpeed - 0.25) / 5.75;
+            }
+            case 10 -> {
+                cfg.chromaSpeed = (float) (Math.round((0.5 + norm * 19.5) * 10.0) / 10.0);
+                norm = (cfg.chromaSpeed - 0.5) / 19.5;
+            }
+            case 11 -> {
+                cfg.chromaSize = 5 + Math.round((float) (norm * 95.0));
+                norm = (cfg.chromaSize - 5.0) / 95.0;
+            }
+            case 12 -> {
+                cfg.chromaSaturation = Math.round((float) (norm * 100.0)) / 100.0f;
+                norm = cfg.chromaSaturation;
             }
         }
         OsuSoundEngine.playSliderTick(norm);
@@ -3292,13 +3634,28 @@ public class DttdrtMainScreen extends Screen {
             if (palSvSec >= 0 && (searching || palSvSec == activeSectionIdx)) {
                 if (isInside(vx, vy, palSvX, palSvY, palSvW, palSvH)) {
                     draggingPaletteMode = 1;
-                    applyNametagPaletteDrag(vx, vy, cfg);
+                    applyPaletteDrag(vx, vy, cfg);
                     ModConfig.save();
                     return true;
                 }
                 if (isInside(vx, vy, palHueX, palHueY, palHueW, palHueH)) {
                     draggingPaletteMode = 2;
-                    applyNametagPaletteDrag(vx, vy, cfg);
+                    applyPaletteDrag(vx, vy, cfg);
+                    ModConfig.save();
+                    return true;
+                }
+            }
+
+            if (namePalSvSec >= 0 && (searching || namePalSvSec == activeSectionIdx)) {
+                if (isInside(vx, vy, namePalSvX, namePalSvY, namePalSvW, namePalSvH)) {
+                    draggingPaletteMode = 3;
+                    applyPaletteDrag(vx, vy, cfg);
+                    ModConfig.save();
+                    return true;
+                }
+                if (isInside(vx, vy, namePalHueX, namePalHueY, namePalHueW, namePalHueH)) {
+                    draggingPaletteMode = 4;
+                    applyPaletteDrag(vx, vy, cfg);
                     ModConfig.save();
                     return true;
                 }
@@ -3869,6 +4226,39 @@ public class DttdrtMainScreen extends Screen {
                 OsuSoundEngine.playKeyConfirm();
                 return true;
             }
+        } else if (focusedInput == 9) {
+            ModConfig cfg = ModConfig.getInstance();
+            if (input.isSelectAll() || (ctrl && key == InputConstants.KEY_BACKSPACE)) {
+                cfg.customNameText = "";
+                ModConfig.save();
+                OsuSoundEngine.playKeySelectAll();
+                return true;
+            }
+            if (input.isPaste() && this.minecraft != null) {
+                String clip = this.minecraft.keyboardHandler.getClipboard();
+                if (clip != null && !clip.isEmpty()) {
+                    String cur = cfg.customNameText != null ? cfg.customNameText : "";
+                    String next = cur + clip.replace("\n", "").replace("\r", "");
+                    cfg.customNameText = next.length() > 32 ? next.substring(0, 32) : next;
+                    ModConfig.save();
+                    OsuSoundEngine.playKeyAdd(clip.charAt(0));
+                }
+                return true;
+            }
+            if (key == InputConstants.KEY_BACKSPACE || key == InputConstants.KEY_DELETE) {
+                if (cfg.customNameText != null && !cfg.customNameText.isEmpty()) {
+                    cfg.customNameText = cfg.customNameText.substring(0, cfg.customNameText.length() - 1);
+                    ModConfig.save();
+                    OsuSoundEngine.playKeyDelete();
+                }
+                return true;
+            }
+            if (input.isConfirmation()) {
+                focusedInput = 0;
+                ModConfig.save();
+                OsuSoundEngine.playKeyConfirm();
+                return true;
+            }
         }
 
         return super.keyPressed(input);
@@ -3936,6 +4326,18 @@ public class DttdrtMainScreen extends Screen {
             if (cur.length() < 120) {
                 String next = cur + chars;
                 cfg.mineshaftStreakMessage = next.length() > 120 ? next.substring(0, 120) : next;
+                ModConfig.save();
+                OsuSoundEngine.playKeyAdd(chars.charAt(0));
+            } else {
+                OsuSoundEngine.playKeyInvalid();
+            }
+            return true;
+        } else if (focusedInput == 9) {
+            ModConfig cfg = ModConfig.getInstance();
+            String cur = cfg.customNameText != null ? cfg.customNameText : "";
+            if (cur.length() < 32) {
+                String next = cur + chars;
+                cfg.customNameText = next.length() > 32 ? next.substring(0, 32) : next;
                 ModConfig.save();
                 OsuSoundEngine.playKeyAdd(chars.charAt(0));
             } else {

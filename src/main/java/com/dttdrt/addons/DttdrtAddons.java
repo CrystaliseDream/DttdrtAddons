@@ -7,6 +7,7 @@ import com.dttdrt.addons.core.feature.FeatureManager;
 import com.dttdrt.addons.core.log.ModLogManager;
 import com.dttdrt.addons.core.update.UpdateChecker;
 import com.dttdrt.addons.features.combat.DamageTrackerFeature;
+import com.dttdrt.addons.features.custom.CustomNameFeature;
 import com.dttdrt.addons.features.freecam.FreeCamFeature;
 import com.dttdrt.addons.features.market.MarketMonitorFeature;
 import com.dttdrt.addons.features.mining.CorpseEspFeature;
@@ -23,6 +24,7 @@ import com.dttdrt.addons.features.nametag.NametagFeature;
 import com.dttdrt.addons.features.party.PartyVoteFeature;
 import com.dttdrt.addons.features.storage.StorageData;
 import com.dttdrt.addons.gui.DttdrtMainScreen;
+import com.dttdrt.addons.render.chroma.ChromaRenderState;
 import com.dttdrt.addons.util.NotificationUtils;
 import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -114,6 +116,7 @@ public class DttdrtAddons implements ClientModInitializer {
         FeatureManager.register(new TempleWaypointFeature());
         FeatureManager.register(new PartyVoteFeature());
         FeatureManager.register(new NametagFeature());
+        FeatureManager.register(new CustomNameFeature());
         FeatureManager.register(new FreeCamFeature());
         FeatureManager.register(new DamageTrackerFeature());
 
@@ -150,6 +153,7 @@ public class DttdrtAddons implements ClientModInitializer {
 
         // 5. Register client tick loop
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            ChromaRenderState.onClientTick();
             if (!keybindsSyncedOnStart && client.options != null) {
                 keybindsSyncedOnStart = true;
                 syncKeybindsFromConfig();

@@ -151,6 +151,22 @@ public class ModConfig {
     public float freecamSpeed = 1.5f;
     public boolean freecamShowHud = true;
 
+    // Chroma Shader (§z dynamic rainbow text)
+    public boolean chromaEnabled = true;
+    public float chromaSize = 30.0f;       // 5 .. 100
+    public float chromaSpeed = 6.0f;       // 0.5 .. 20.0
+    public float chromaSaturation = 0.75f; // 0.0 .. 1.0
+    public String chromaDirection = "FORWARD_RIGHT"; // FORWARD_RIGHT, FORWARD_LEFT, BACKWARD_RIGHT, BACKWARD_LEFT
+
+    // Custom Name (visual client-side name replacement)
+    public boolean customNameEnabled = false;
+    public String customNameText = "";
+    public String customNameColorMode = "CHROMA"; // CHROMA, SOLID
+    public int customNameColor = 0xFFFF55FF;
+    public boolean customNameBold = false;
+    public boolean customNameItalic = false;
+    public boolean customNameUnderlined = false;
+
     public static ModConfig getInstance() {
         if (instance == null) {
             load();
@@ -232,6 +248,31 @@ public class ModConfig {
             instance.lastCostBzPrices = new ConcurrentHashMap<>();
         } else if (!(instance.lastCostBzPrices instanceof ConcurrentHashMap)) {
             instance.lastCostBzPrices = new ConcurrentHashMap<>(instance.lastCostBzPrices);
+        }
+        if (instance.chromaSize < 5.0f || instance.chromaSize > 100.0f || Float.isNaN(instance.chromaSize)) {
+            instance.chromaSize = 30.0f;
+        }
+        if (instance.chromaSpeed < 0.5f || instance.chromaSpeed > 20.0f || Float.isNaN(instance.chromaSpeed)) {
+            instance.chromaSpeed = 6.0f;
+        }
+        if (instance.chromaSaturation < 0.0f || instance.chromaSaturation > 1.0f || Float.isNaN(instance.chromaSaturation)) {
+            instance.chromaSaturation = 0.75f;
+        }
+        if (instance.chromaDirection == null || instance.chromaDirection.isBlank()) {
+            instance.chromaDirection = "FORWARD_RIGHT";
+        }
+        if (instance.customNameText == null) {
+            instance.customNameText = "";
+        }
+        if (!"SOLID".equalsIgnoreCase(instance.customNameColorMode)) {
+            instance.customNameColorMode = "CHROMA";
+        } else {
+            instance.customNameColorMode = "SOLID";
+        }
+        if (instance.customNameColor == 0) {
+            instance.customNameColor = 0xFFFF55FF;
+        } else {
+            instance.customNameColor |= 0xFF000000;
         }
     }
 
