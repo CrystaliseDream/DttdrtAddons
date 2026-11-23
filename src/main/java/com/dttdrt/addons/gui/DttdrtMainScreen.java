@@ -1263,7 +1263,7 @@ public class DttdrtMainScreen extends Screen {
                 "Custom", "dttdrtaddons.section.custom", "Top", "Accent", "Line", "Color",
                 "Disable", "All", "Reset", "Panic", "Off", "dttdrtaddons.custom.disable_all_btn",
                 "Background", "Image", "Market", "Scale", "Offset", "Darken",
-                "Display", "Opacity", "Sound", "Audio", "SFX", "Effect",
+                "Display", "Opacity", "Sound", "Audio", "SFX", "Effect", "Update", "Auto", "dttdrtaddons.custom.auto_update",
                 "Keybind", "Shortcut", "Hotkey", "Menu", "Settings", "Vote", "Party", "!vote", "Yes", "No",
                 "Storage", "EC", "BP", "Ender", "Chest", "Backpack", "Preview", "Overlay", "Tooltip", "Outline", "Search",
                 "Mineshaft", "Streak", "Announce", "Message",
@@ -1343,13 +1343,18 @@ public class DttdrtMainScreen extends Screen {
             }
 
             if (matchesFilter("Custom", "dttdrtaddons.section.custom", "Display", "Opacity", "Sound", "Audio", "SFX", "Effect",
-                    "dttdrtaddons.custom.display_header", "dttdrtaddons.custom.ui_sounds",
-                    "dttdrtaddons.custom.panel_opacity")) {
+                    "Update", "Auto", "dttdrtaddons.custom.display_header", "dttdrtaddons.custom.ui_sounds",
+                    "dttdrtaddons.custom.auto_update", "dttdrtaddons.custom.panel_opacity")) {
                 curY = drawSubsectionHeader(g, x, curY, ModLang.tr("dttdrtaddons.custom.display_header"), viewTop, viewBottom);
                 if (matchesFilter("Custom", "dttdrtaddons.section.custom", "Display", "Sound", "Audio", "SFX", "Effect",
                         "dttdrtaddons.custom.display_header", "dttdrtaddons.custom.ui_sounds")) {
                     curY = drawFormCheckBox(g, 3, "ui_sounds_enabled", x, curY, w, ModLang.tr("dttdrtaddons.custom.ui_sounds"), 0,
                             cfg.uiSoundsEnabled, v -> cfg.uiSoundsEnabled = v, viewTop, viewBottom, mouseX, mouseY, dt);
+                    curY += ITEM_SPACING_V2;
+                }
+                if (matchesFilter("Custom", "dttdrtaddons.section.custom", "Update", "Auto", "dttdrtaddons.custom.auto_update")) {
+                    curY = drawFormCheckBox(g, 3, "auto_update_enabled", x, curY, w, ModLang.tr("dttdrtaddons.custom.auto_update"), 0,
+                            cfg.autoUpdateEnabled, v -> cfg.autoUpdateEnabled = v, viewTop, viewBottom, mouseX, mouseY, dt);
                     curY += ITEM_SPACING_V2;
                 }
                 if (matchesFilter("Custom", "dttdrtaddons.section.custom", "Display", "Opacity", "Market Card Opacity",

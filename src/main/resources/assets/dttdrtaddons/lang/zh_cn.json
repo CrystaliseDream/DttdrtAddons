@@ -143,6 +143,7 @@
   "dttdrtaddons.custom.panel_opacity": "Panel Opacity",
   "dttdrtaddons.custom.ui_scale": "UI Scale: %s",
   "dttdrtaddons.custom.ui_sounds": "osu!lazer UI Sounds",
+  "dttdrtaddons.custom.auto_update": "Auto Update on Exit",
 
   "dttdrtaddons.custom.keybind_header": "Keybindings",
   "dttdrtaddons.custom.key_open_menu": "Open Settings Menu",
@@ -175,6 +176,7 @@
   "dttdrtaddons.custom.disable_all_btn": "谁改我键位了？",
 
   "dttdrtaddons.update.available": "§aNew update available: §ev%s §7(current: §fv%s§7)",
+  "dttdrtaddons.update.ready_on_exit": "§aUpdate §ev%s §adownloaded (from §fv%s§a) - auto-installs on exit",
   "dttdrtaddons.update.open_github": "[Open GitHub]",
   "dttdrtaddons.update.hover": "§7Click to open §b%s",
 

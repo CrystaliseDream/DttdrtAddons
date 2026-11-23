@@ -15,6 +15,8 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Locale;
 import java.util.Map;
@@ -92,6 +94,145 @@ public final class HttpTransportHelper {
         }
 
         throw directError != null ? directError : new IOException("Request failed");
+    }
+
+    /**
+     * Downloads a binary file to {@code targetFile} using direct connection first,
+     * falling back to detected HTTP/SOCKS system proxies on failure.
+     */
+    public static int downloadFile(
+            String url,
+            Path targetFile,
+            Map<String, String> headers,
+            int timeoutSeconds
+    ) throws IOException {
+        Path parent = targetFile.getParent();
+        if (parent != null) {
+            Files.createDirectories(parent);
+        }
+
+        IOException directError = null;
+        try {
+            int status = downloadViaHttpClient(DIRECT_CLIENT, url, targetFile, headers, timeoutSeconds);
+            if (status >= 200 && status < 300) {
+                return status;
+            }
+            if (status < 520) {
+                throw new IOException("HTTP " + status + " downloading " + url);
+            }
+            directError = new IOException("HTTP " + status);
+        } catch (IOException e) {
+            directError = e;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IOException("Download interrupted", e);
+        }
+
+        ProxyEndpoint systemProxy = detectSystemProxy(url);
+        if (systemProxy != null) {
+            try {
+                if (systemProxy.type() == Proxy.Type.HTTP) {
+                    HttpClient proxied = HttpClient.newBuilder()
+                            .connectTimeout(Duration.ofSeconds(Math.max(8, timeoutSeconds)))
+                            .followRedirects(HttpClient.Redirect.NORMAL)
+                            .proxy(ProxySelector.of(new InetSocketAddress(systemProxy.host(), systemProxy.port())))
+                            .build();
+                    int status = downloadViaHttpClient(proxied, url, targetFile, headers, timeoutSeconds);
+                    if (status >= 200 && status < 300) {
+                        return status;
+                    }
+                    throw new IOException("Proxy HTTP " + status);
+                } else {
+                    int status = downloadViaSocksUrlConnection(systemProxy, url, targetFile, headers, timeoutSeconds);
+                    if (status >= 200 && status < 300) {
+                        return status;
+                    }
+                    throw new IOException("SOCKS proxy HTTP " + status);
+                }
+            } catch (IOException proxyErr) {
+                ModLogManager.info("Network", "System proxy download fallback failed (" + systemProxy.host()
+                        + ":" + systemProxy.port() + "): " + proxyErr.getMessage());
+                if (directError != null) {
+                    throw directError;
+                }
+                throw proxyErr;
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IOException("Proxy download interrupted", e);
+            }
+        }
+
+        throw directError != null ? directError : new IOException("Download failed");
+    }
+
+    private static int downloadViaHttpClient(
+            HttpClient client,
+            String url,
+            Path targetFile,
+            Map<String, String> headers,
+            int timeoutSeconds
+    ) throws IOException, InterruptedException {
+        HttpRequest.Builder builder = HttpRequest.newBuilder()
+                .uri(URI.create(url))
+                .timeout(Duration.ofSeconds(timeoutSeconds))
+                .GET();
+        if (headers != null) {
+            for (Map.Entry<String, String> e : headers.entrySet()) {
+                builder.header(e.getKey(), e.getValue());
+            }
+        }
+        HttpResponse<Path> resp = client.send(builder.build(), HttpResponse.BodyHandlers.ofFile(targetFile));
+        return resp.statusCode();
+    }
+
+    private static int downloadViaSocksUrlConnection(
+            ProxyEndpoint endpoint,
+            String urlStr,
+            Path targetFile,
+            Map<String, String> headers,
+            int timeoutSeconds
+    ) throws IOException {
+        Proxy proxy = new Proxy(Proxy.Type.SOCKS, new InetSocketAddress(endpoint.host(), endpoint.port()));
+        String currentUrl = urlStr;
+        for (int hops = 0; hops < 6; hops++) {
+            URL url = URI.create(currentUrl).toURL();
+            HttpsURLConnection conn = (HttpsURLConnection) url.openConnection(proxy);
+            conn.setConnectTimeout(timeoutSeconds * 1000);
+            conn.setReadTimeout(timeoutSeconds * 1000);
+            conn.setInstanceFollowRedirects(false);
+            conn.setRequestMethod("GET");
+            if (headers != null) {
+                for (Map.Entry<String, String> e : headers.entrySet()) {
+                    conn.setRequestProperty(e.getKey(), e.getValue());
+                }
+            }
+            int status = conn.getResponseCode();
+            if (status == 301 || status == 302 || status == 303 || status == 307 || status == 308) {
+                String location = conn.getHeaderField("Location");
+                conn.disconnect();
+                if (location == null || location.isBlank()) {
+                    return status;
+                }
+                currentUrl = URI.create(currentUrl).resolve(location).toString();
+                continue;
+            }
+            if (status >= 200 && status < 300) {
+                try (InputStream is = conn.getInputStream();
+                     OutputStream os = Files.newOutputStream(targetFile)) {
+                    byte[] buf = new byte[16384];
+                    int n;
+                    while ((n = is.read(buf)) != -1) {
+                        os.write(buf, 0, n);
+                    }
+                } finally {
+                    conn.disconnect();
+                }
+                return status;
+            }
+            conn.disconnect();
+            return status;
+        }
+        throw new IOException("Too many redirects downloading " + urlStr);
     }
 
     private static HttpResult sendViaHttpClient(

@@ -222,11 +222,12 @@ public class DttdrtAddons implements ClientModInitializer {
             }
         });
 
-        // 6. Shutdown hook to persist configurations, storage pages, and profit trackers
+        // 6. Shutdown hook to persist configurations, storage pages, profit trackers, and launch staged auto-update
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             ModConfig.save();
             StorageData.getInstance().saveSync();
             ProfitDataStore.getInstance().saveSync();
+            UpdateChecker.launchStagedUpdateIfReady();
         }));
     }
 
