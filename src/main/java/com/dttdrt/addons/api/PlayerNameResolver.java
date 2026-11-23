@@ -44,7 +44,7 @@ public class PlayerNameResolver {
         CompletableFuture<String> future = IN_FLIGHT.computeIfAbsent(cleanUuid, id -> {
             HttpRequest req = HttpRequest.newBuilder()
                     .uri(URI.create(MOJANG_PROFILE_URL + id))
-                    .header("User-Agent", "DttdrtAddons/1.1.3")
+                    .header("User-Agent", "DttdrtAddons/1.1.4")
                     .timeout(Duration.ofSeconds(8))
                     .GET()
                     .build();

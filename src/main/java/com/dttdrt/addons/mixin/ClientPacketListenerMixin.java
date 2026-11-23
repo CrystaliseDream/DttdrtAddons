@@ -40,7 +40,9 @@ public class ClientPacketListenerMixin {
         String trimmed = command.trim();
         if ("da".equalsIgnoreCase(trimmed)) {
             Minecraft mc = Minecraft.getInstance();
-            mc.schedule(() -> mc.setScreen(new DttdrtMainScreen()));
+            if (DttdrtAddons.canOpenMenu(mc)) {
+                mc.schedule(() -> mc.setScreen(new DttdrtMainScreen()));
+            }
             ci.cancel();
             return;
         }

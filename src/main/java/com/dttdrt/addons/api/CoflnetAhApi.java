@@ -86,7 +86,7 @@ public class CoflnetAhApi {
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(url))
-                .header("User-Agent", "DttdrtAddons/1.1.3")
+                .header("User-Agent", "DttdrtAddons/1.1.4")
                 .header("Accept", "application/json")
                 .timeout(Duration.ofSeconds(10))
                 .GET()
@@ -222,7 +222,7 @@ public class CoflnetAhApi {
                         url,
                         "GET",
                         null,
-                        Map.of("User-Agent", "DttdrtAddons/1.1.3", "Accept", "application/json"),
+                        Map.of("User-Agent", "DttdrtAddons/1.1.4", "Accept", "application/json"),
                         10
                 );
                 if (resp.statusCode() != 200 || resp.body().isEmpty()) {
@@ -270,7 +270,7 @@ public class CoflnetAhApi {
                     url,
                     "GET",
                     null,
-                    Map.of("User-Agent", "DttdrtAddons/1.1.3", "Accept", "application/json"),
+                    Map.of("User-Agent", "DttdrtAddons/1.1.4", "Accept", "application/json"),
                     10
             );
             if (resp.statusCode() != 200 || resp.body().isEmpty()) {
@@ -301,7 +301,7 @@ public class CoflnetAhApi {
                     "https://moulberry.codes/lowestbin.json",
                     "GET",
                     null,
-                    Map.of("User-Agent", "DttdrtAddons/1.1.3", "Accept", "application/json"),
+                    Map.of("User-Agent", "DttdrtAddons/1.1.4", "Accept", "application/json"),
                     10
             );
             if (mb.statusCode() == 200 && !mb.body().isEmpty()) {

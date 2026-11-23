@@ -46,7 +46,7 @@ public final class UpdateChecker {
     private static final AtomicBoolean CHAT_NOTIFIED = new AtomicBoolean(false);
 
     private static volatile boolean updateAvailable = false;
-    private static volatile String currentVersion = "1.1.3";
+    private static volatile String currentVersion = "1.1.4";
     private static volatile String latestVersion = "";
     private static volatile String latestPageUrl = REPO_URL;
     private static int inWorldTicks = 0;
@@ -118,9 +118,9 @@ public final class UpdateChecker {
             return FabricLoader.getInstance()
                     .getModContainer(DttdrtAddons.MOD_ID)
                     .map(c -> c.getMetadata().getVersion().getFriendlyString())
-                    .orElse("1.1.3");
+                    .orElse("1.1.4");
         } catch (Throwable ignored) {
-            return "1.1.3";
+            return "1.1.4";
         }
     }
 

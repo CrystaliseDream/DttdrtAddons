@@ -269,6 +269,12 @@ public class DttdrtMainScreen extends Screen {
     @Override
     protected void init() {
         super.init();
+        if (!DttdrtAddons.canOpenMenu(this.minecraft)) {
+            if (this.minecraft != null) {
+                this.minecraft.setScreen(null);
+            }
+            return;
+        }
         ModLang.reloadExternalOverrides();
         this.openTime = System.currentTimeMillis();
         this.lastFrameNs = System.nanoTime();
@@ -279,7 +285,6 @@ public class DttdrtMainScreen extends Screen {
         this.marketScrollTarget = this.marketScrollOffset;
         this.activeSectionIdx = 0;
         this.lockedFocusSectionIdx = -1;
-        WorldBackgroundFreezeManager.invalidateCapture();
         // SettingsPanel.PopIn: SearchTextBox.TakeFocus() eagerly holds focus on open
         this.focusedInput = 7;
         this.capturingKeybindId = 0;
@@ -1224,7 +1229,6 @@ public class DttdrtMainScreen extends Screen {
                 "Disable", "All", "Reset", "Panic", "Off", "dttdrtaddons.custom.disable_all_btn",
                 "Background", "Image", "Market", "Scale", "Offset", "Darken",
                 "Display", "Opacity", "Sound", "Audio", "SFX", "Effect",
-                "Freeze", "World", "FPS",
                 "Keybind", "Shortcut", "Hotkey", "Menu", "Settings", "Vote", "Party", "!vote", "Yes", "No",
                 "Storage", "EC", "BP", "Ender", "Chest", "Backpack", "Preview", "Overlay", "Tooltip", "Outline", "Search",
                 "Mineshaft", "Streak", "Announce", "Message",
@@ -1302,23 +1306,13 @@ public class DttdrtMainScreen extends Screen {
             }
 
             if (matchesFilter("Custom", "dttdrtaddons.section.custom", "Display", "Opacity", "Sound", "Audio", "SFX", "Effect",
-                    "Freeze", "World", "Background", "FPS",
                     "dttdrtaddons.custom.display_header", "dttdrtaddons.custom.ui_sounds",
-                    "dttdrtaddons.custom.freeze_bg", "dttdrtaddons.custom.panel_opacity")) {
+                    "dttdrtaddons.custom.panel_opacity")) {
                 curY = drawSubsectionHeader(g, x, curY, ModLang.tr("dttdrtaddons.custom.display_header"), viewTop, viewBottom);
                 if (matchesFilter("Custom", "dttdrtaddons.section.custom", "Display", "Sound", "Audio", "SFX", "Effect",
                         "dttdrtaddons.custom.display_header", "dttdrtaddons.custom.ui_sounds")) {
                     curY = drawFormCheckBox(g, 3, "ui_sounds_enabled", x, curY, w, ModLang.tr("dttdrtaddons.custom.ui_sounds"), 0,
                             cfg.uiSoundsEnabled, v -> cfg.uiSoundsEnabled = v, viewTop, viewBottom, mouseX, mouseY, dt);
-                    curY += ITEM_SPACING_V2;
-                }
-                if (matchesFilter("Custom", "dttdrtaddons.section.custom", "Display", "Freeze", "World", "Background", "FPS",
-                        "dttdrtaddons.custom.display_header", "dttdrtaddons.custom.freeze_bg")) {
-                    curY = drawFormCheckBox(g, 3, "freeze_world_bg", x, curY, w, ModLang.tr("dttdrtaddons.custom.freeze_bg"), 0,
-                            cfg.freezeWorldBackground, v -> {
-                                cfg.freezeWorldBackground = v;
-                                WorldBackgroundFreezeManager.invalidateCapture();
-                            }, viewTop, viewBottom, mouseX, mouseY, dt);
                     curY += ITEM_SPACING_V2;
                 }
                 if (matchesFilter("Custom", "dttdrtaddons.section.custom", "Display", "Opacity", "Market Card Opacity",
@@ -3976,7 +3970,6 @@ public class DttdrtMainScreen extends Screen {
         dragToggledKeys.clear();
         OsuSoundEngine.resetSliderTickState();
         applyNativeTextInput(false);
-        WorldBackgroundFreezeManager.invalidateCapture();
         super.removed();
     }
 

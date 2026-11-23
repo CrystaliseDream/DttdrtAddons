@@ -45,7 +45,6 @@ public class ModConfig {
 
     // Custom Menu Background & Display
     public boolean uiSoundsEnabled = true;
-    public boolean freezeWorldBackground = false;
     public boolean showMarketHud = true;
     public float marketHudScale = 1.0f;  // 0.60 .. 1.50 overall Market HUD scale
     public int drawerTopLineColor = 0xFFFF66AA; // Customizable top accent line color

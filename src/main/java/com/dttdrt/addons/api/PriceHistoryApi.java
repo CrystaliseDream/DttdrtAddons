@@ -36,7 +36,7 @@ public class PriceHistoryApi {
 
         HttpRequest req = HttpRequest.newBuilder()
                 .uri(URI.create(url))
-                .header("User-Agent", "DttdrtAddons/1.1.3")
+                .header("User-Agent", "DttdrtAddons/1.1.4")
                 .timeout(Duration.ofSeconds(10))
                 .GET()
                 .build();
@@ -79,7 +79,7 @@ public class PriceHistoryApi {
 
         HttpRequest req = HttpRequest.newBuilder()
                 .uri(URI.create(url))
-                .header("User-Agent", "DttdrtAddons/1.1.3")
+                .header("User-Agent", "DttdrtAddons/1.1.4")
                 .timeout(Duration.ofSeconds(10))
                 .GET()
                 .build();

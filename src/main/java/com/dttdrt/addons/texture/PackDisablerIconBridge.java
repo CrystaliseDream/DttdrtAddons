@@ -3,6 +3,7 @@ package com.dttdrt.addons.texture;
 import com.dttdrt.addons.core.log.ModLogManager;
 import com.dttdrt.addons.features.mining.profit.MiningItemTable;
 import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -35,8 +36,14 @@ public final class PackDisablerIconBridge {
     private static volatile Map<?, ?> idToSkullProfileMap = null;
 
     private static final Map<String, ItemStack> ICON_CACHE = new ConcurrentHashMap<>();
+    private static final Map<String, Boolean> NEGATIVE_CACHE = new ConcurrentHashMap<>();
 
     private PackDisablerIconBridge() {
+    }
+
+    private static boolean areComponentsBound() {
+        Minecraft mc = Minecraft.getInstance();
+        return mc != null && mc.level != null;
     }
 
     public static boolean isAvailable() {
@@ -85,22 +92,32 @@ public final class PackDisablerIconBridge {
      * Returns null if PackDisabler is not installed or has no complete mapping/skull profile.
      */
     public static ItemStack tryResolveFromPackDisabler(String skyblockId) {
-        if (skyblockId == null || skyblockId.isBlank()) {
+        if (skyblockId == null || skyblockId.isBlank() || !areComponentsBound()) {
+            return null;
+        }
+        String key = skyblockId.toUpperCase(Locale.ROOT);
+        ItemStack cached = ICON_CACHE.get(key);
+        if (cached != null) {
+            return cached.getItem() == Items.BARRIER ? null : cached;
+        }
+        if (Boolean.TRUE.equals(NEGATIVE_CACHE.get(key))) {
             return null;
         }
         ensureInitialized();
         Map<?, ?> locMap = idToLocationMap;
         if (!modLoaded || locMap == null || locMap.isEmpty()) {
+            if (!modLoaded) {
+                NEGATIVE_CACHE.put(key, Boolean.TRUE);
+            }
             return null;
         }
 
-        String upper = skyblockId.toUpperCase(Locale.ROOT);
-        String dashed = upper.replace(':', '-');
+        String dashed = key.replace(':', '-');
 
         String matchedKey = null;
-        Object locVal = locMap.get(upper);
+        Object locVal = locMap.get(key);
         if (locVal != null) {
-            matchedKey = upper;
+            matchedKey = key;
         } else {
             locVal = locMap.get(dashed);
             if (locVal != null) {
@@ -108,27 +125,35 @@ public final class PackDisablerIconBridge {
             }
         }
         if (!(locVal instanceof Identifier modelLoc)) {
+            NEGATIVE_CACHE.put(key, Boolean.TRUE);
             return null;
         }
 
-        Item item = BuiltInRegistries.ITEM.getValue(modelLoc);
-        if (item == null || item == Items.AIR) {
-            return null;
-        }
-
-        ItemStack stack = new ItemStack(item);
-        if (item == Items.PLAYER_HEAD) {
-            Map<?, ?> skullMap = idToSkullProfileMap;
-            Object profileObj = skullMap != null ? skullMap.get(matchedKey) : null;
-            if (profileObj == null && skullMap != null && !matchedKey.equals(upper)) {
-                profileObj = skullMap.get(upper);
-            }
-            if (!(profileObj instanceof ResolvableProfile profile)) {
+        try {
+            Item item = BuiltInRegistries.ITEM.getValue(modelLoc);
+            if (item == null || item == Items.AIR) {
+                NEGATIVE_CACHE.put(key, Boolean.TRUE);
                 return null;
             }
-            stack.set(DataComponents.PROFILE, profile);
+
+            ItemStack stack = new ItemStack(item);
+            if (item == Items.PLAYER_HEAD) {
+                Map<?, ?> skullMap = idToSkullProfileMap;
+                Object profileObj = skullMap != null ? skullMap.get(matchedKey) : null;
+                if (profileObj == null && skullMap != null && !matchedKey.equals(key)) {
+                    profileObj = skullMap.get(key);
+                }
+                if (!(profileObj instanceof ResolvableProfile profile)) {
+                    NEGATIVE_CACHE.put(key, Boolean.TRUE);
+                    return null;
+                }
+                stack.set(DataComponents.PROFILE, profile);
+            }
+            ICON_CACHE.put(key, stack);
+            return stack;
+        } catch (Throwable ignored) {
+            return null;
         }
-        return stack;
     }
 
     /**
@@ -136,6 +161,9 @@ public final class PackDisablerIconBridge {
      * whenever PackDisabler is missing or the texture/model cannot be resolved.
      */
     public static ItemStack getIconStack(String skyblockId) {
+        if (!areComponentsBound()) {
+            return ItemStack.EMPTY;
+        }
         if (skyblockId == null || skyblockId.isBlank()) {
             return new ItemStack(Items.BARRIER);
         }
@@ -145,19 +173,21 @@ public final class PackDisablerIconBridge {
             return cached;
         }
 
-        ensureInitialized();
         ItemStack resolved = tryResolveFromPackDisabler(key);
         if (resolved != null) {
-            ICON_CACHE.put(key, resolved);
             return resolved;
         }
 
         // Only cache BARRIER once PackDisabler is confirmed absent or finished loading its map.
-        ItemStack barrier = new ItemStack(Items.BARRIER);
-        if (!modLoaded || (idToLocationMap != null && !idToLocationMap.isEmpty())) {
-            ICON_CACHE.put(key, barrier);
+        try {
+            ItemStack barrier = new ItemStack(Items.BARRIER);
+            if (!modLoaded || (idToLocationMap != null && !idToLocationMap.isEmpty())) {
+                ICON_CACHE.put(key, barrier);
+            }
+            return barrier;
+        } catch (Throwable ignored) {
+            return ItemStack.EMPTY;
         }
-        return barrier;
     }
 
     public static void drawItemIcon(GuiGraphicsExtractor g, String skyblockId, int x, int y, int size) {

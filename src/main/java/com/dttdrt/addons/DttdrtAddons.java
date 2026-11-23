@@ -122,7 +122,9 @@ public class DttdrtAddons implements ClientModInitializer {
             dispatcher.register(ClientCommands.literal("da")
                     .executes(context -> {
                         Minecraft mc = Minecraft.getInstance();
-                        mc.schedule(() -> mc.setScreen(new DttdrtMainScreen()));
+                        if (canOpenMenu(mc)) {
+                            mc.schedule(() -> mc.setScreen(new DttdrtMainScreen()));
+                        }
                         return 1;
                     })
             );
@@ -153,9 +155,9 @@ public class DttdrtAddons implements ClientModInitializer {
                 syncKeybindsFromConfig();
             }
 
-            // Handle Open Settings Menu keybind press
+            // Handle Open Settings Menu keybind press (only after entering a world/server)
             while (openMenuKeyMapping != null && openMenuKeyMapping.consumeClick()) {
-                if (client.screen == null) {
+                if (client.screen == null && canOpenMenu(client)) {
                     client.setScreen(new DttdrtMainScreen());
                 }
             }
@@ -222,6 +224,10 @@ public class DttdrtAddons implements ClientModInitializer {
             StorageData.getInstance().saveSync();
             ProfitDataStore.getInstance().saveSync();
         }));
+    }
+
+    public static boolean canOpenMenu(Minecraft client) {
+        return client != null && client.level != null && client.player != null;
     }
 
     private static boolean canSendPartyHotkey(Minecraft client) {
