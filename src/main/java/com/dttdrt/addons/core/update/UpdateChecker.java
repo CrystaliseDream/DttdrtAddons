@@ -66,7 +66,7 @@ public final class UpdateChecker {
 
     private static volatile boolean updateAvailable = false;
     private static volatile boolean stagedUpdateReady = false;
-    private static volatile String currentVersion = "1.1.5";
+    private static volatile String currentVersion = "1.1.6";
     private static volatile String latestVersion = "";
     private static volatile String latestPageUrl = REPO_URL;
     private static volatile Path stagedOldJar = null;
@@ -410,9 +410,9 @@ public final class UpdateChecker {
             return FabricLoader.getInstance()
                     .getModContainer(DttdrtAddons.MOD_ID)
                     .map(c -> c.getMetadata().getVersion().getFriendlyString())
-                    .orElse("1.1.5");
+                    .orElse("1.1.6");
         } catch (Throwable ignored) {
-            return "1.1.5";
+            return "1.1.6";
         }
     }
 

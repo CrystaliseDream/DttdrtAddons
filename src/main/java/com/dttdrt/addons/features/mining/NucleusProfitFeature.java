@@ -791,15 +791,15 @@ public class NucleusProfitFeature implements Feature {
         graphics.fill(0, 0, baseW, baseH, 0xB8101218);
         graphics.outline(0, 0, baseW, baseH, 0xFF2D3646);
 
-        graphics.text(mc.font, ModLang.tr("dttdrtaddons.hud.nucleus_profit.title"), 6, 5, 0xFFFFAA00);
+        graphics.text(mc.font, ModLang.tr("dttdrtaddons.hud.nucleus_profit.title"), 6, 5, MiningItemTable.LEGACY_GOLD);
         String badge = "[" + MiningProfitFeature.getModeDisplayName(mode) + "]";
         int badgeW = mc.font.width(badge);
-        graphics.text(mc.font, badge, baseW - badgeW - 6, 5, 0xFF55FFFF);
+        graphics.text(mc.font, badge, baseW - badgeW - 6, 5, MiningItemTable.LEGACY_AQUA);
         graphics.fill(5, 16, baseW - 5, 17, 0x663A4659);
 
         int curY = 20;
         if (visibleRows.isEmpty()) {
-            graphics.text(mc.font, ModLang.tr("dttdrtaddons.hud.nucleus_profit.empty"), 6, curY, 0xFF9CA3AF);
+            graphics.text(mc.font, ModLang.tr("dttdrtaddons.hud.nucleus_profit.empty"), 6, curY, MiningItemTable.LEGACY_GRAY);
             curY += rowH;
         } else {
             for (DisplayRow row : visibleRows) {
@@ -812,12 +812,12 @@ public class NucleusProfitFeature implements Feature {
                     left = left.substring(0, left.length() - 4) + "...";
                 }
                 graphics.text(mc.font, left, 18, curY, row.color());
-                graphics.text(mc.font, right, baseW - rightW - 6, curY, 0xFFFFD166);
+                graphics.text(mc.font, right, baseW - rightW - 6, curY, MiningItemTable.LEGACY_YELLOW);
                 curY += rowH;
             }
             if (overflowCount > 0) {
                 graphics.text(mc.font, ModLang.tr("dttdrtaddons.hud.mining_profit.more_items", overflowCount),
-                        18, curY, 0xFF9CA3AF);
+                        18, curY, MiningItemTable.LEGACY_GRAY);
                 curY += rowH;
             }
         }
@@ -843,15 +843,15 @@ public class NucleusProfitFeature implements Feature {
                 "-" + NumberFormatUtils.formatCompact(costs));
         String grossText = ModLang.tr("dttdrtaddons.hud.mining_profit.gross",
                 NumberFormatUtils.formatCompact(grossCoins));
-        graphics.text(mc.font, costText, 6, curY, 0xFFF87171);
-        graphics.text(mc.font, grossText, baseW - mc.font.width(grossText) - 6, curY, 0xFF9CA3AF);
+        graphics.text(mc.font, costText, 6, curY, MiningItemTable.LEGACY_RED);
+        graphics.text(mc.font, grossText, baseW - mc.font.width(grossText) - 6, curY, MiningItemTable.LEGACY_GRAY);
         curY += 11;
 
         String runsText = ModLang.tr("dttdrtaddons.hud.nucleus_profit.runs", runs);
         String runsHrText = String.format(Locale.ROOT, "%.1f", runsPerHour)
                 + ModLang.tr("dttdrtaddons.hud.nucleus_profit.per_hr");
-        graphics.text(mc.font, runsText, 6, curY, 0xFFE5E7EB);
-        graphics.text(mc.font, runsHrText, baseW - mc.font.width(runsHrText) - 6, curY, 0xFF60A5FA);
+        graphics.text(mc.font, runsText, 6, curY, MiningItemTable.LEGACY_WHITE);
+        graphics.text(mc.font, runsHrText, baseW - mc.font.width(runsHrText) - 6, curY, MiningItemTable.LEGACY_BLUE);
         curY += 11;
 
         String netSign = netCoins < 0 ? "-" : "";
@@ -860,17 +860,17 @@ public class NucleusProfitFeature implements Feature {
         String rateSign = coinsPerHour < 0 ? "-" : "";
         String rateText = rateSign + NumberFormatUtils.formatCompact(Math.abs(coinsPerHour))
                 + ModLang.tr("dttdrtaddons.hud.mining_profit.per_hr");
-        graphics.text(mc.font, netLabel, 6, curY, netCoins >= 0 ? 0xFFFFAA00 : 0xFFF87171);
+        graphics.text(mc.font, netLabel, 6, curY, netCoins >= 0 ? MiningItemTable.LEGACY_GOLD : MiningItemTable.LEGACY_RED);
         graphics.text(mc.font, rateText, baseW - mc.font.width(rateText) - 6, curY,
-                coinsPerHour >= 0 ? 0xFF55FF55 : 0xFFF87171);
+                coinsPerHour >= 0 ? MiningItemTable.LEGACY_GREEN : MiningItemTable.LEGACY_RED);
         curY += 11;
 
         String timeStr = String.format("%02d:%02d", secs / 60, secs % 60);
         String statusSuffix = (!timerActive && secs > 0) ? ModLang.tr("dttdrtaddons.hud.mining_profit.paused") : "";
         String leftMeta = ModLang.tr("dttdrtaddons.hud.mining_profit.time", timeStr, statusSuffix);
-        graphics.text(mc.font, leftMeta, 6, curY, (!timerActive && secs > 0) ? 0xFFF87171 : 0xFF9CA3AF);
+        graphics.text(mc.font, leftMeta, 6, curY, (!timerActive && secs > 0) ? MiningItemTable.LEGACY_RED : MiningItemTable.LEGACY_GRAY);
         String dispTag = "[" + MiningProfitFeature.getDisplayModeName(displayMode) + "]";
-        graphics.text(mc.font, dispTag, baseW - mc.font.width(dispTag) - 6, curY, 0xFF9CA3AF);
+        graphics.text(mc.font, dispTag, baseW - mc.font.width(dispTag) - 6, curY, MiningItemTable.LEGACY_GRAY);
 
         graphics.pose().popMatrix();
     }

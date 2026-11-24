@@ -111,7 +111,7 @@ public class WhitelistManager {
                         reqJson.toString(),
                         Map.of(
                                 "Content-Type", "application/json",
-                                "User-Agent", "DttdrtAddons/1.1.5",
+                                "User-Agent", "DttdrtAddons/1.1.6",
                                 "Cache-Control", "no-cache"
                         ),
                         12
@@ -207,7 +207,7 @@ public class WhitelistManager {
                         reqJson.toString(),
                         Map.of(
                                 "Content-Type", "application/json",
-                                "User-Agent", "DttdrtAddons/1.1.5"
+                                "User-Agent", "DttdrtAddons/1.1.6"
                         ),
                         12
                 );

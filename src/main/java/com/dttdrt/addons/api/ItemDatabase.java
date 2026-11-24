@@ -89,14 +89,14 @@ public class ItemDatabase {
 
         HttpRequest itemsReq = HttpRequest.newBuilder()
                 .uri(URI.create(HYPIXEL_ITEMS_URL))
-                .header("User-Agent", "DttdrtAddons/1.1.5")
+                .header("User-Agent", "DttdrtAddons/1.1.6")
                 .timeout(Duration.ofSeconds(30))
                 .GET()
                 .build();
 
         HttpRequest bzReq = HttpRequest.newBuilder()
                 .uri(URI.create(HYPIXEL_BAZAAR_URL))
-                .header("User-Agent", "DttdrtAddons/1.1.5")
+                .header("User-Agent", "DttdrtAddons/1.1.6")
                 .timeout(Duration.ofSeconds(30))
                 .GET()
                 .build();
@@ -122,7 +122,7 @@ public class ItemDatabase {
 
         HttpRequest coflReq = HttpRequest.newBuilder()
                 .uri(URI.create(COFL_ITEMS_URL))
-                .header("User-Agent", "DttdrtAddons/1.1.5")
+                .header("User-Agent", "DttdrtAddons/1.1.6")
                 .timeout(Duration.ofSeconds(30))
                 .GET()
                 .build();

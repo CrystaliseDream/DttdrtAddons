@@ -70,6 +70,25 @@ public final class MiningItemTable {
             Map.entry("JASPER", 6)
     );
 
+    // Classic Minecraft formatting RGBs nudged away from the exact 8 vanilla values
+    // (and their 1/4 drop shadows) that Hypixel's server pack shader rewrites in modify_vanilla_color.glsl.
+    public static final int LEGACY_BLACK = 0xFF000000;
+    public static final int LEGACY_DARK_BLUE = 0xFF0000B0;
+    public static final int LEGACY_DARK_GREEN = 0xFF00AA00;
+    public static final int LEGACY_DARK_AQUA = 0xFF00AAAA;
+    public static final int LEGACY_DARK_RED = 0xFFB00000;
+    public static final int LEGACY_DARK_PURPLE = 0xFFB000B0;
+    public static final int LEGACY_GOLD = 0xFFFFB000;
+    public static final int LEGACY_GRAY = 0xFFB0B0B0;
+    public static final int LEGACY_DARK_GRAY = 0xFF5C5C5C;
+    public static final int LEGACY_BLUE = 0xFF5C5CFF;
+    public static final int LEGACY_GREEN = 0xFF55FF55;
+    public static final int LEGACY_AQUA = 0xFF55FFFF;
+    public static final int LEGACY_RED = 0xFFFF5555;
+    public static final int LEGACY_LIGHT_PURPLE = 0xFFFF55FF;
+    public static final int LEGACY_YELLOW = 0xFFFFFF5C;
+    public static final int LEGACY_WHITE = 0xFFFFFFFF;
+
     private static final Map<String, Integer> GEMSTONE_COLORS = Map.ofEntries(
             Map.entry("RUBY", 0xFFFF3344),
             Map.entry("AMBER", 0xFFED8B23),
@@ -144,7 +163,7 @@ public final class MiningItemTable {
         }
 
         // Virtual entry for coins dropped into the purse
-        Entry coinEntry = new Entry("Coins", COINS_KEY, null, 0, 0xFFFFD166, 1.0);
+        Entry coinEntry = new Entry("Coins", COINS_KEY, null, 0, LEGACY_GOLD, 1.0);
         BY_KEY.putIfAbsent(COINS_KEY, coinEntry);
     }
 
@@ -185,29 +204,29 @@ public final class MiningItemTable {
                 if (c != null) return c;
             }
         }
-        return mcColorToArgb(colorCode, 0xFFE5E7EB);
+        return mcColorToArgb(colorCode, LEGACY_WHITE);
     }
 
     private static int mcColorToArgb(String code, int fallback) {
         if (code == null || code.length() < 2) return fallback;
         char c = Character.toLowerCase(code.charAt(code.length() - 1));
         return switch (c) {
-            case '0' -> 0xFF9CA3AF;
-            case '1' -> 0xFF3B82F6;
-            case '2' -> 0xFF22C55E;
-            case '3' -> 0xFF06B6D4;
-            case '4' -> 0xFFEF4444;
-            case '5' -> 0xFFA855F7;
-            case '6' -> 0xFFF59E0B;
-            case '7' -> 0xFFD1D5DB;
-            case '8' -> 0xFF9CA3AF;
-            case '9' -> 0xFF60A5FA;
-            case 'a' -> 0xFF4ADE80;
-            case 'b' -> 0xFF38BDF8;
-            case 'c' -> 0xFFF87171;
-            case 'd' -> 0xFFE879F9;
-            case 'e' -> 0xFFFACC15;
-            case 'f' -> 0xFFF3F4F6;
+            case '0' -> LEGACY_BLACK;
+            case '1' -> LEGACY_DARK_BLUE;
+            case '2' -> LEGACY_DARK_GREEN;
+            case '3' -> LEGACY_DARK_AQUA;
+            case '4' -> LEGACY_DARK_RED;
+            case '5' -> LEGACY_DARK_PURPLE;
+            case '6' -> LEGACY_GOLD;
+            case '7' -> LEGACY_GRAY;
+            case '8' -> LEGACY_DARK_GRAY;
+            case '9' -> LEGACY_BLUE;
+            case 'a' -> LEGACY_GREEN;
+            case 'b' -> LEGACY_AQUA;
+            case 'c' -> LEGACY_RED;
+            case 'd' -> LEGACY_LIGHT_PURPLE;
+            case 'e' -> LEGACY_YELLOW;
+            case 'f' -> LEGACY_WHITE;
             default -> fallback;
         };
     }
@@ -323,7 +342,7 @@ public final class MiningItemTable {
         Integer learned = LEARNED_COLORS.get(key);
         if (learned != null) return learned;
         Entry entry = getByKey(key);
-        return entry != null ? entry.defaultColorArgb() : 0xFFE5E7EB;
+        return entry != null ? entry.defaultColorArgb() : LEGACY_WHITE;
     }
 
     public static Entry resolveStack(ItemStack stack) {
@@ -387,14 +406,14 @@ public final class MiningItemTable {
             for (int i = lines.size() - 1; i >= 0; i--) {
                 String s = lines.get(i).getString().trim();
                 String upper = stripFormatting(s).toUpperCase(Locale.ROOT);
-                if (upper.startsWith("COMMON")) { LEARNED_COLORS.put(key, 0xFFF3F4F6); return; }
-                if (upper.startsWith("UNCOMMON")) { LEARNED_COLORS.put(key, 0xFF4ADE80); return; }
-                if (upper.startsWith("RARE")) { LEARNED_COLORS.put(key, 0xFF60A5FA); return; }
-                if (upper.startsWith("EPIC")) { LEARNED_COLORS.put(key, 0xFFC084FC); return; }
-                if (upper.startsWith("LEGENDARY")) { LEARNED_COLORS.put(key, 0xFFF59E0B); return; }
-                if (upper.startsWith("MYTHIC")) { LEARNED_COLORS.put(key, 0xFFF472B6); return; }
-                if (upper.startsWith("DIVINE")) { LEARNED_COLORS.put(key, 0xFF38BDF8); return; }
-                if (upper.startsWith("SPECIAL")) { LEARNED_COLORS.put(key, 0xFFF87171); return; }
+                if (upper.startsWith("COMMON")) { LEARNED_COLORS.put(key, LEGACY_WHITE); return; }
+                if (upper.startsWith("UNCOMMON")) { LEARNED_COLORS.put(key, LEGACY_GREEN); return; }
+                if (upper.startsWith("RARE")) { LEARNED_COLORS.put(key, LEGACY_BLUE); return; }
+                if (upper.startsWith("EPIC")) { LEARNED_COLORS.put(key, LEGACY_DARK_PURPLE); return; }
+                if (upper.startsWith("LEGENDARY")) { LEARNED_COLORS.put(key, LEGACY_GOLD); return; }
+                if (upper.startsWith("MYTHIC")) { LEARNED_COLORS.put(key, LEGACY_LIGHT_PURPLE); return; }
+                if (upper.startsWith("DIVINE")) { LEARNED_COLORS.put(key, LEGACY_AQUA); return; }
+                if (upper.startsWith("SPECIAL") || upper.startsWith("VERY SPECIAL")) { LEARNED_COLORS.put(key, LEGACY_RED); return; }
             }
         }
     }

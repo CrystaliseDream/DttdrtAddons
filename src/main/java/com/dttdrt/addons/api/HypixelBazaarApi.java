@@ -49,7 +49,7 @@ public class HypixelBazaarApi {
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(BAZAAR_URL))
-                .header("User-Agent", "DttdrtAddons/1.1.5")
+                .header("User-Agent", "DttdrtAddons/1.1.6")
                 .timeout(Duration.ofSeconds(10))
                 .GET()
                 .build();
@@ -127,7 +127,7 @@ public class HypixelBazaarApi {
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(BAZAAR_URL))
-                .header("User-Agent", "DttdrtAddons/1.1.5")
+                .header("User-Agent", "DttdrtAddons/1.1.6")
                 .timeout(Duration.ofSeconds(10))
                 .GET()
                 .build();
