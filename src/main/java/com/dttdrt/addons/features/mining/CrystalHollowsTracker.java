@@ -1,10 +1,18 @@
 package com.dttdrt.addons.features.mining;
 
+import com.dttdrt.addons.core.config.ModConfig;
+import com.dttdrt.addons.util.NotificationUtils;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.multiplayer.PlayerInfo;
+import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.HoverEvent;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Style;
+import net.minecraft.network.chat.TextColor;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.entity.player.Player;
@@ -15,12 +23,18 @@ import net.minecraft.world.scores.PlayerScoreEntry;
 import net.minecraft.world.scores.PlayerTeam;
 import net.minecraft.world.scores.Scoreboard;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.EnumMap;
 import java.util.EnumSet;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -34,6 +48,15 @@ public class CrystalHollowsTracker {
     private static final Pattern COLOR_CODE_PATTERN = Pattern.compile("§.");
     private static final Pattern SERVER_ID_PATTERN = Pattern.compile("\\b((?:mini|mega|m)\\d+[A-Za-z0-9]*)\\b");
     private static final Pattern SENDING_SERVER_PATTERN = Pattern.compile("Sending to server ([A-Za-z0-9_]+)");
+    private static final Pattern SBE_DSM_PATTERN = Pattern.compile(
+            "\\$(?:SBECHWP\\b|DSMCHWP):(?<loc>[^@]+)@-(?<x>-?\\d+),(?<y>-?\\d+),(?<z>-?\\d+)");
+    private static final Pattern LABELED_XYZ_PATTERN = Pattern.compile(
+            "(?i)\\bx:\\s*(?<x>-?\\d{1,4})\\s*[,/]?\\s*y:\\s*(?<y>-?\\d{1,3})\\s*[,/]?\\s*z:\\s*(?<z>-?\\d{1,4})\\b");
+    private static final Pattern CHAT_XYZ_PATTERN = Pattern.compile(
+            "^.*?(?<user>[A-Za-z0-9_]{3,16}):.*?(?<!\\d)(?<x>[2-8]\\d{2})(?:\\s*[,/]\\s*|\\s+)(?:[yY]:\\s*)?(?<y>\\d{2,3})(?:\\s*[,/]\\s*|\\s+)(?:[zZ]:\\s*)?(?<z>[2-8]\\d{2})(?!\\d).*$");
+    private static final Pattern CHAT_XZ_PATTERN = Pattern.compile(
+            "^.*?(?<user>[A-Za-z0-9_]{3,16}):.*?(?<!\\d)(?<x>[2-8]\\d{2})(?:\\s*[,/]\\s*|\\s+)(?<z>[2-8]\\d{2})(?!\\d).*$");
+    private static final Pattern PLAYER_SENDER_PATTERN = Pattern.compile("(?:^|>|\\])\\s*([A-Za-z0-9_]{3,16}):");
 
     public enum Crystal {
         AMBER,
@@ -177,6 +200,8 @@ public class CrystalHollowsTracker {
     }
 
     private static final Map<String, EnumMap<CrystalLocation, SavedCoord>> SERVER_CACHE = new ConcurrentHashMap<>();
+    private static final Map<String, List<CustomWaypoint>> SERVER_CUSTOM_CACHE = new ConcurrentHashMap<>();
+    private static final List<CustomWaypoint> CUSTOM_WAYPOINTS = new CopyOnWriteArrayList<>();
 
     private static ClientLevel lastLevel = null;
     private static volatile boolean inCrystalHollows = false;
@@ -185,6 +210,8 @@ public class CrystalHollowsTracker {
     private static volatile String currentZoneName = "";
     private static volatile String currentServerId = "";
     private static volatile CustomWaypoint activeWishingWaypoint = null;
+    private static volatile String lastChatCoordSig = "";
+    private static volatile long lastChatCoordMs = 0L;
     private static int tickCounter = 0;
 
     public static boolean isInGemstoneMiningArea() {
@@ -203,13 +230,345 @@ public class CrystalHollowsTracker {
         return currentServerId;
     }
 
+    public static List<CustomWaypoint> getCustomWaypoints() {
+        return CUSTOM_WAYPOINTS;
+    }
+
+    public static void addCustomWaypoint(String label, double worldX, double worldY, double worldZ, int color) {
+        String cleanLabel = (label == null || label.isBlank()) ? "Waypoint" : label.trim();
+        double cx = clamp(worldX, 200.0, 824.0);
+        double cy = clamp(worldY, 30.0, 256.0);
+        double cz = clamp(worldZ, 200.0, 824.0);
+        CUSTOM_WAYPOINTS.removeIf(w -> w.label.equalsIgnoreCase(cleanLabel)
+                || (Math.abs(w.x - cx) < 2.0 && Math.abs(w.z - cz) < 2.0));
+        CUSTOM_WAYPOINTS.add(new CustomWaypoint(cleanLabel, cx, cy, cz, color));
+        saveCurrentToCache();
+    }
+
+    public static void removeCustomWaypoint(CustomWaypoint target) {
+        if (target == null) return;
+        CUSTOM_WAYPOINTS.remove(target);
+        saveCurrentToCache();
+    }
+
     public static void onChatMessage(String rawText) {
         if (rawText == null || rawText.isEmpty()) return;
-        String clean = stripColors(rawText);
+        String clean = stripColors(rawText).trim();
         Matcher m = SENDING_SERVER_PATTERN.matcher(clean);
         if (m.find()) {
             handleServerChange(m.group(1));
+            return;
         }
+        tryParseLobbyCoordinates(clean);
+    }
+
+    private static void tryParseLobbyCoordinates(String clean) {
+        ModConfig cfg = ModConfig.getInstance();
+        if (!cfg.crystalHollowsMapEnabled || !cfg.chChatCoordsEnabled || !isInCrystalHollows()) {
+            return;
+        }
+        if (clean.startsWith("[DA]") || clean.startsWith("[NPC]") || clean.startsWith("[Bazaar]")) {
+            return;
+        }
+
+        int x;
+        int y;
+        int z;
+        String explicitLocHint = null;
+        String sender = extractSenderName(clean);
+
+        Matcher sbe = SBE_DSM_PATTERN.matcher(clean);
+        if (sbe.find()) {
+            explicitLocHint = sbe.group("loc");
+            Integer px = parseIntSafe(sbe.group("x"));
+            Integer py = parseIntSafe(sbe.group("y"));
+            Integer pz = parseIntSafe(sbe.group("z"));
+            if (px == null || py == null || pz == null) return;
+            x = px;
+            y = py;
+            z = pz;
+        } else {
+            Matcher labeled = LABELED_XYZ_PATTERN.matcher(clean);
+            if (labeled.find()) {
+                Integer px = parseIntSafe(labeled.group("x"));
+                Integer py = parseIntSafe(labeled.group("y"));
+                Integer pz = parseIntSafe(labeled.group("z"));
+                if (px == null || py == null || pz == null) return;
+                x = px;
+                y = py;
+                z = pz;
+            } else {
+                Matcher xyz = CHAT_XYZ_PATTERN.matcher(clean);
+                if (xyz.matches()) {
+                    if (sender == null) sender = xyz.group("user");
+                    Integer px = parseIntSafe(xyz.group("x"));
+                    Integer py = parseIntSafe(xyz.group("y"));
+                    Integer pz = parseIntSafe(xyz.group("z"));
+                    if (px == null || py == null || pz == null) return;
+                    x = px;
+                    y = py;
+                    z = pz;
+                } else {
+                    Matcher xz = CHAT_XZ_PATTERN.matcher(clean);
+                    if (!xz.matches()) return;
+                    if (sender == null) sender = xz.group("user");
+                    Integer px = parseIntSafe(xz.group("x"));
+                    Integer pz = parseIntSafe(xz.group("z"));
+                    if (px == null || pz == null) return;
+                    x = px;
+                    String lower = clean.toLowerCase(Locale.ROOT);
+                    y = (lower.contains("bal") || lower.contains("khazad") || lower.contains("magma")) ? 54 : 100;
+                    z = pz;
+                }
+            }
+        }
+
+        if (!isValidHollowsCoord(x, y, z)) {
+            return;
+        }
+
+        long now = System.currentTimeMillis();
+        String sig = x + "," + y + "," + z;
+        if (sig.equals(lastChatCoordSig) && now - lastChatCoordMs < 2000L) {
+            return;
+        }
+        lastChatCoordSig = sig;
+        lastChatCoordMs = now;
+
+        CrystalLocation inferred = explicitLocHint != null
+                ? inferLocationFromText(explicitLocHint)
+                : inferLocationFromText(clean);
+        sendClickableCoordPrompt(x, y, z, inferred, sender);
+    }
+
+    private static boolean isValidHollowsCoord(int x, int y, int z) {
+        return x >= 200 && x <= 824 && y >= 30 && y <= 190 && z >= 200 && z <= 824;
+    }
+
+    private static Integer parseIntSafe(String raw) {
+        if (raw == null) return null;
+        try {
+            return Integer.parseInt(raw.trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private static String extractSenderName(String clean) {
+        Matcher m = PLAYER_SENDER_PATTERN.matcher(clean);
+        if (m.find()) {
+            return m.group(1);
+        }
+        return null;
+    }
+
+    public static String getTerrainZoneName(double x, double y, double z) {
+        if (x >= 462 && x <= 564 && y >= 63 && y <= 181 && z >= 461 && z <= 565) {
+            return "Crystal Nucleus";
+        }
+        if (y <= 64) {
+            return "Magma Fields";
+        }
+        if (x < 512 && z < 512) {
+            return "Jungle";
+        }
+        if (x >= 512 && z < 512) {
+            return "Mithril Deposits";
+        }
+        if (x < 512 && z >= 512) {
+            return "Goblin Holdout";
+        }
+        return "Precursor Remnants";
+    }
+
+    public static CrystalLocation inferLocationFromText(String text) {
+        if (text == null || text.isEmpty()) return null;
+        String normalized = text.toLowerCase(Locale.ROOT)
+                .replace("û", "u")
+                .replace("'", "");
+        if (normalized.contains("precursor") || containsWord(normalized, "city")) {
+            return CrystalLocation.LOST_PRECURSOR_CITY;
+        }
+        if (normalized.contains("jungle temple") || containsWord(normalized, "temple")) {
+            return CrystalLocation.JUNGLE_TEMPLE;
+        }
+        if (normalized.contains("odawa")) {
+            return CrystalLocation.ODAWA;
+        }
+        if (normalized.contains("goblin queen") || normalized.contains("queens den")
+                || containsWord(normalized, "queen") || containsWord(normalized, "den")) {
+            return CrystalLocation.GOBLIN_QUEENS_DEN;
+        }
+        if (normalized.contains("yolkar") || normalized.contains("goblin king") || containsWord(normalized, "king")) {
+            return CrystalLocation.KING_YOLKAR;
+        }
+        if (normalized.contains("divan") || containsWord(normalized, "mod")) {
+            return CrystalLocation.MINES_OF_DIVAN;
+        }
+        if (normalized.contains("corleone") || containsWord(normalized, "corl")) {
+            return CrystalLocation.CORLEONE;
+        }
+        if (normalized.contains("khazad") || containsWord(normalized, "bal")) {
+            return CrystalLocation.KHAZAD_DUM;
+        }
+        if (normalized.contains("fairy") || normalized.contains("grotto") || containsWord(normalized, "jasper")) {
+            return CrystalLocation.FAIRY_GROTTO;
+        }
+        return null;
+    }
+
+    private static boolean containsWord(String lower, String word) {
+        int idx = lower.indexOf(word);
+        while (idx >= 0) {
+            boolean leftOk = idx == 0 || !Character.isLetterOrDigit(lower.charAt(idx - 1));
+            int end = idx + word.length();
+            boolean rightOk = end >= lower.length() || !Character.isLetterOrDigit(lower.charAt(end));
+            if (leftOk && rightOk) return true;
+            idx = lower.indexOf(word, idx + 1);
+        }
+        return false;
+    }
+
+    private static Set<CrystalLocation> getTerrainCandidates(double x, double y, double z) {
+        Set<CrystalLocation> set = new LinkedHashSet<>();
+        if (y <= 64) {
+            set.add(CrystalLocation.KHAZAD_DUM);
+            set.add(CrystalLocation.FAIRY_GROTTO);
+            return set;
+        }
+        if (x < 512 && z < 512) {
+            set.add(CrystalLocation.JUNGLE_TEMPLE);
+            set.add(CrystalLocation.ODAWA);
+        } else if (x >= 512 && z < 512) {
+            set.add(CrystalLocation.MINES_OF_DIVAN);
+            set.add(CrystalLocation.CORLEONE);
+        } else if (x < 512 && z >= 512) {
+            set.add(CrystalLocation.GOBLIN_QUEENS_DEN);
+            set.add(CrystalLocation.KING_YOLKAR);
+        } else {
+            set.add(CrystalLocation.LOST_PRECURSOR_CITY);
+        }
+        // Large multi-chunk structures can overlap ~50 blocks across quadrant or Magma borders
+        if (y <= 72) {
+            set.add(CrystalLocation.KHAZAD_DUM);
+        }
+        if (x < 562 && z < 562) set.add(CrystalLocation.JUNGLE_TEMPLE);
+        if (x >= 462 && z < 562) set.add(CrystalLocation.MINES_OF_DIVAN);
+        if (x < 562 && z >= 462) set.add(CrystalLocation.GOBLIN_QUEENS_DEN);
+        if (x >= 462 && z >= 462) set.add(CrystalLocation.LOST_PRECURSOR_CITY);
+        set.add(CrystalLocation.FAIRY_GROTTO);
+        return set;
+    }
+
+    private static void sendClickableCoordPrompt(int x, int y, int z, CrystalLocation inferred, String sender) {
+        String zone = getTerrainZoneName(x, y, z);
+        MutableComponent root = Component.literal("§6[DA] §eFound coords §f(" + x + ", " + y + ", " + z + ") ")
+                .append(Component.literal("[" + zone + "] ").withStyle(ChatFormatting.AQUA))
+                .append(Component.literal("click to mark:\n").withStyle(ChatFormatting.GRAY));
+
+        Set<CrystalLocation> ordered = new LinkedHashSet<>();
+        if (inferred != null) {
+            ordered.add(inferred);
+        }
+        for (CrystalLocation cand : getTerrainCandidates(x, y, z)) {
+            if (!cand.exists() || cand == inferred) {
+                ordered.add(cand);
+            }
+        }
+        if (ordered.isEmpty()) {
+            for (CrystalLocation loc : CrystalLocation.values()) {
+                if (!loc.exists()) ordered.add(loc);
+            }
+        }
+
+        for (CrystalLocation loc : ordered) {
+            boolean primary = (loc == inferred);
+            String label = primary ? "[* " + loc.displayName + "]" : "[" + loc.displayName + "]";
+            String cmd = "/dahw set " + loc.name() + " " + x + " " + y + " " + z;
+            Style btnStyle = Style.EMPTY
+                    .withColor(TextColor.fromRgb(loc.fillColor & 0x00FFFFFF))
+                    .withBold(primary)
+                    .withClickEvent(new ClickEvent.RunCommand(cmd))
+                    .withHoverEvent(new HoverEvent.ShowText(
+                            Component.literal("Click to mark " + loc.displayName + " at (" + x + ", " + y + ", " + z + ") on Crystal Hollows Map")));
+            root.append(Component.literal(label).setStyle(btnStyle)).append(Component.literal(" "));
+        }
+
+        String customName = (inferred != null)
+                ? inferred.displayName
+                : ((sender != null && !sender.isBlank()) ? sender : zone);
+        String safeCustomName = customName.replace(' ', '_');
+        String customCmd = "/dahw custom " + x + " " + y + " " + z + " " + safeCustomName;
+        Style customStyle = Style.EMPTY
+                .withColor(ChatFormatting.YELLOW)
+                .withClickEvent(new ClickEvent.RunCommand(customCmd))
+                .withHoverEvent(new HoverEvent.ShowText(
+                        Component.literal("Click to add custom waypoint \"" + customName + "\" at (" + x + ", " + y + ", " + z + ")")));
+        root.append(Component.literal("[Custom]").setStyle(customStyle));
+
+        NotificationUtils.sendClientChatMessage(root);
+    }
+
+    public static boolean handleClientWaypointCommand(String argsRaw) {
+        String trimmed = argsRaw == null ? "" : argsRaw.trim();
+        if (trimmed.isEmpty()) {
+            NotificationUtils.sendClientChatMessage(Component.literal(
+                    "§6[DA] §eUsage: /dahw set <LOCATION> <x> <y> <z> | /dahw custom <x> <y> <z> [name] | /dahw clear"));
+            return true;
+        }
+        String[] parts = trimmed.split("\\s+");
+        String sub = parts[0].toLowerCase(Locale.ROOT);
+        if ("clear".equals(sub)) {
+            resetAll();
+            if (!currentServerId.isEmpty()) {
+                SERVER_CACHE.remove(currentServerId);
+                SERVER_CUSTOM_CACHE.remove(currentServerId);
+            }
+            NotificationUtils.sendClientChatMessage(Component.literal("§6[DA] §aCleared all Crystal Hollows Map waypoints."));
+            return true;
+        }
+        if ("set".equals(sub) && parts.length >= 5) {
+            CrystalLocation loc = resolveLocationArg(parts[1]);
+            Integer x = parseIntSafe(parts[2]);
+            Integer y = parseIntSafe(parts[3]);
+            Integer z = parseIntSafe(parts[4]);
+            if (loc == null || x == null || y == null || z == null) {
+                NotificationUtils.sendClientChatMessage(Component.literal("§6[DA] §cInvalid location or coordinates."));
+                return true;
+            }
+            setManualLocation(loc, x, y, z);
+            String zone = getTerrainZoneName(x, y, z);
+            NotificationUtils.sendClientChatMessage(Component.literal(
+                    "§6[DA] §aMarked §f" + loc.displayName + " §aat §e(" + x + ", " + y + ", " + z + ") §7[" + zone + "]"));
+            return true;
+        }
+        if ("custom".equals(sub) && parts.length >= 4) {
+            Integer x = parseIntSafe(parts[1]);
+            Integer y = parseIntSafe(parts[2]);
+            Integer z = parseIntSafe(parts[3]);
+            if (x == null || y == null || z == null) {
+                NotificationUtils.sendClientChatMessage(Component.literal("§6[DA] §cInvalid coordinates."));
+                return true;
+            }
+            String label = parts.length >= 5
+                    ? String.join(" ", java.util.Arrays.copyOfRange(parts, 4, parts.length)).replace('_', ' ')
+                    : getTerrainZoneName(x, y, z);
+            addCustomWaypoint(label, x, y, z, 0xFFFFFF55);
+            NotificationUtils.sendClientChatMessage(Component.literal(
+                    "§6[DA] §aAdded custom waypoint §e" + label + " §aat §e(" + x + ", " + y + ", " + z + ")"));
+            return true;
+        }
+        return true;
+    }
+
+    private static CrystalLocation resolveLocationArg(String raw) {
+        if (raw == null) return null;
+        for (CrystalLocation loc : CrystalLocation.values()) {
+            if (loc.name().equalsIgnoreCase(raw) || loc.displayName.replace(" ", "_").equalsIgnoreCase(raw)) {
+                return loc;
+            }
+        }
+        return inferLocationFromText(raw);
     }
 
     public static void setManualLocation(CrystalLocation loc, double worldX, double worldY, double worldZ) {
@@ -250,6 +609,10 @@ public class CrystalHollowsTracker {
                     e.getKey().setExactWorld(c.worldX, c.worldY, c.worldZ);
                 }
             }
+            List<CustomWaypoint> cachedCustom = SERVER_CUSTOM_CACHE.get(currentServerId);
+            if (cachedCustom != null && !cachedCustom.isEmpty()) {
+                CUSTOM_WAYPOINTS.addAll(cachedCustom);
+            }
         }
     }
 
@@ -262,12 +625,14 @@ public class CrystalHollowsTracker {
                 map.put(loc, new SavedCoord(loc.getWorldX(), loc.getWorldY(), loc.getWorldZ()));
             }
         }
+        SERVER_CUSTOM_CACHE.put(currentServerId, new ArrayList<>(CUSTOM_WAYPOINTS));
     }
 
     private static void resetActiveLocationsOnly() {
         for (CrystalLocation loc : CrystalLocation.values()) {
             loc.reset();
         }
+        CUSTOM_WAYPOINTS.clear();
         activeWishingWaypoint = null;
         CrystalWishingCompassSolver.getInstance().reset();
     }
@@ -362,7 +727,7 @@ public class CrystalHollowsTracker {
         Objective sidebar = scoreboard.getDisplayObjective(DisplaySlot.SIDEBAR);
         if (sidebar != null) {
             String title = stripColors(sidebar.getDisplayName().getString()).toLowerCase(Locale.ROOT);
-            if (title.contains("skyblock")) {
+            if (title.replace(" ", "").contains("skyblock")) {
                 Collection<PlayerScoreEntry> entries = scoreboard.listPlayerScores(sidebar);
                 for (PlayerScoreEntry entry : entries) {
                     String owner = entry.owner();

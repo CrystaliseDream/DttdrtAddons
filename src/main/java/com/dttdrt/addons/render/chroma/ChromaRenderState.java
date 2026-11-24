@@ -20,16 +20,20 @@ public final class ChromaRenderState {
     private static final TextColor CHROMA_TEXT_COLOR = TextColorAccessor.dttdrt$create(0xFFFFFF, CHROMA_COLOR_NAME);
     private static final Style CHROMA_STYLE = Style.EMPTY.withColor(CHROMA_TEXT_COLOR);
 
+    private static final long START_NANO = System.nanoTime();
     private static ChromaUniform chromaUniform;
     private static GpuBufferSlice chromaBufferSlice;
-    private static long clientTicks = 0L;
     private static boolean glyphIsChroma = false;
 
     private ChromaRenderState() {
     }
 
     public static void onClientTick() {
-        clientTicks++;
+        // Animation timing uses continuous monotonic wall-clock nanos so GUI previews stay live even while paused.
+    }
+
+    public static float getElapsedTicks() {
+        return (float) ((System.nanoTime() - START_NANO) / 50_000_000.0);
     }
 
     public static boolean isChromaFeatureActive() {
@@ -92,14 +96,27 @@ public final class ChromaRenderState {
         }
     }
 
+    public static RenderPipeline resolveGlyphPipeline(Object renderable) {
+        if (!isChromaFeatureActive()) {
+            return null;
+        }
+        if (renderable instanceof ChromaStyledAccess access) {
+            Style style = access.dttdrt$getStyle();
+            if (style != null && isChromaColor(style.getColor())) {
+                return ChromaRenderPipelines.getChromaText();
+            }
+        }
+        return null;
+    }
+
     public static RenderPipeline resolveGuiPipeline(GuiElementRenderState state, RenderPipeline original) {
         if (!isChromaFeatureActive()) {
             return original;
         }
-        if (state instanceof GlyphRenderState glyphState && glyphState.renderable() instanceof ChromaStyledAccess access) {
-            Style style = access.dttdrt$getStyle();
-            if (style != null && isChromaColor(style.getColor())) {
-                return ChromaRenderPipelines.getChromaText();
+        if (state instanceof GlyphRenderState glyphState) {
+            RenderPipeline override = resolveGlyphPipeline(glyphState.renderable());
+            if (override != null) {
+                return override;
             }
         }
         return original;
@@ -115,12 +132,9 @@ public final class ChromaRenderState {
         ModConfig cfg = ModConfig.getInstance();
         Minecraft mc = Minecraft.getInstance();
         int displayWidth = (mc != null && mc.getWindow() != null) ? Math.max(1, mc.getWindow().getWidth()) : 1920;
-        float partialTick = (mc != null && mc.getDeltaTracker() != null)
-                ? mc.getDeltaTracker().getGameTimeDeltaPartialTick(true)
-                : 0.0f;
 
         float chromaSize = Math.max(1.0f, cfg.chromaSize * (displayWidth / 100.0f));
-        float ticks = clientTicks + partialTick;
+        float ticks = getElapsedTicks();
         String dir = cfg.chromaDirection != null ? cfg.chromaDirection : "FORWARD_RIGHT";
         boolean leftFlow = "FORWARD_LEFT".equalsIgnoreCase(dir) || "BACKWARD_LEFT".equalsIgnoreCase(dir);
         boolean forwardDiag = "FORWARD_RIGHT".equalsIgnoreCase(dir) || "FORWARD_LEFT".equalsIgnoreCase(dir);

@@ -39,6 +39,7 @@ public class ModConfig {
 
     // Crystal Hollows Map
     public boolean crystalHollowsMapEnabled = true;
+    public boolean chChatCoordsEnabled = true;
     public int chMapX = 8;
     public int chMapY = 8;
     public float chMapScale = 0.20f;

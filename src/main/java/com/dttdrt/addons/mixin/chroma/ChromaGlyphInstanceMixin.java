@@ -5,7 +5,11 @@ import net.minecraft.network.chat.Style;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 
-@Mixin(targets = "net.minecraft.client.gui.font.glyphs.BakedSheetGlyph$GlyphInstance")
+@Mixin(targets = {
+        "net.minecraft.client.gui.font.glyphs.BakedSheetGlyph$GlyphInstance",
+        "net.minecraft.client.gui.font.AtlasGlyphProvider$Instance",
+        "net.minecraft.client.gui.font.PlayerGlyphProvider$Instance"
+})
 public abstract class ChromaGlyphInstanceMixin implements ChromaStyledAccess {
 
     @Shadow

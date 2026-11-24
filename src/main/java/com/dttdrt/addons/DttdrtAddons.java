@@ -149,6 +149,22 @@ public class DttdrtAddons implements ClientModInitializer {
                                 return 1;
                             }))
             );
+            dispatcher.register(ClientCommands.literal("dahw")
+                    .executes(context -> {
+                        if (WhitelistManager.isAuthorized()) {
+                            CrystalHollowsTracker.handleClientWaypointCommand("");
+                        }
+                        return 1;
+                    })
+                    .then(ClientCommands.argument("args", StringArgumentType.greedyString())
+                            .executes(context -> {
+                                if (WhitelistManager.isAuthorized()) {
+                                    CrystalHollowsTracker.handleClientWaypointCommand(
+                                            StringArgumentType.getString(context, "args"));
+                                }
+                                return 1;
+                            }))
+            );
         });
 
         // 5. Register client tick loop

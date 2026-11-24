@@ -5,6 +5,7 @@ import com.dttdrt.addons.core.config.ModConfig;
 import com.dttdrt.addons.features.mining.CrystalHollowsTracker.CrystalLocation;
 import com.dttdrt.addons.features.mining.CrystalHollowsTracker.CustomWaypoint;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
+import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -29,7 +30,7 @@ public class CrystalHollowsMapHud {
             Identifier.fromNamespaceAndPath("dttdrtaddons", "crystal_hollows_map");
 
     public static void register() {
-        HudElementRegistry.addLast(HUD_ID, (graphics, deltaTracker) -> render(graphics));
+        HudElementRegistry.attachElementAfter(VanillaHudElements.OVERLAY_MESSAGE, HUD_ID, (graphics, deltaTracker) -> render(graphics));
     }
 
     private static void render(GuiGraphicsExtractor graphics) {
@@ -91,6 +92,15 @@ public class CrystalHollowsMapHud {
             graphics.outline(wx - 12, wz - 12, 24, 24, 0xFF55FFFF);
         }
 
+        // Shared/custom lobby chat waypoints on 2D map
+        for (CustomWaypoint cw : CrystalHollowsTracker.getCustomWaypoints()) {
+            int wx = (int) Math.max(8, Math.min(616, Math.round(cw.x - 200.0)));
+            int wz = (int) Math.max(8, Math.min(616, Math.round(cw.z - 200.0)));
+            int rgb = cw.color & 0x00FFFFFF;
+            graphics.fill(wx - 12, wz - 12, wx + 12, wz + 12, 0xAA000000 | rgb);
+            graphics.outline(wx - 12, wz - 12, 24, 24, 0xFF000000 | rgb);
+        }
+
         // Player position & rotated arrow indicator
         float px = 312f;
         float pz = 312f;
@@ -138,6 +148,12 @@ public class CrystalHollowsMapHud {
         if (wishing != null) {
             renderSingleWaypoint(graphics, mc, camPos, viewProj, screenW, screenH,
                     wishing.label, wishing.x, wishing.y + 2.0, wishing.z, wishing.color);
+        }
+
+        // Shared/custom lobby chat waypoints
+        for (CustomWaypoint cw : CrystalHollowsTracker.getCustomWaypoints()) {
+            renderSingleWaypoint(graphics, mc, camPos, viewProj, screenW, screenH,
+                    cw.label, cw.x, cw.y + 2.0, cw.z, cw.color);
         }
     }
 

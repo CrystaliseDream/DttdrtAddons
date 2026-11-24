@@ -12,6 +12,7 @@ import com.dttdrt.addons.features.party.PartyVoteFeature;
 import com.dttdrt.addons.features.storage.StorageOverlayManager;
 import com.dttdrt.addons.gui.DttdrtMainScreen;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.protocol.game.ClientboundContainerSetContentPacket;
@@ -36,27 +37,47 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public class ClientPacketListenerMixin {
     @Inject(method = "sendCommand", at = @At("HEAD"), cancellable = true)
     private void dttdrt$onSendCommand(String command, CallbackInfo ci) {
-        if (command == null) return;
+        if (dttdrt$tryHandleClientCommand(command)) {
+            ci.cancel();
+        }
+    }
+
+    @Inject(method = "sendUnattendedCommand", at = @At("HEAD"), cancellable = true)
+    private void dttdrt$onSendUnattendedCommand(String command, Screen previousScreen, CallbackInfo ci) {
+        if (dttdrt$tryHandleClientCommand(command)) {
+            ci.cancel();
+        }
+    }
+
+    private static boolean dttdrt$tryHandleClientCommand(String command) {
+        if (command == null) return false;
         String trimmed = command.trim();
         if ("da".equalsIgnoreCase(trimmed)) {
             Minecraft mc = Minecraft.getInstance();
             if (DttdrtAddons.canOpenMenu(mc)) {
                 mc.schedule(() -> mc.setScreen(new DttdrtMainScreen()));
             }
-            ci.cancel();
-            return;
+            return true;
         }
         if ("daretry".equalsIgnoreCase(trimmed) || "dttdrtretry".equalsIgnoreCase(trimmed)) {
             DttdrtAddons.executeWhitelistRetryCommand(Minecraft.getInstance());
-            ci.cancel();
-            return;
+            return true;
         }
         if ("daapply".equalsIgnoreCase(trimmed)
                 || (trimmed.length() > 8 && trimmed.substring(0, 8).equalsIgnoreCase("daapply "))) {
             String note = trimmed.length() > 8 ? trimmed.substring(8).trim() : "";
             DttdrtAddons.executeWhitelistApplyCommand(Minecraft.getInstance(), note);
-            ci.cancel();
+            return true;
         }
+        if ("dahw".equalsIgnoreCase(trimmed)
+                || (trimmed.length() > 5 && trimmed.substring(0, 5).equalsIgnoreCase("dahw "))) {
+            if (WhitelistManager.isAuthorized()) {
+                String args = trimmed.length() > 5 ? trimmed.substring(5).trim() : "";
+                CrystalHollowsTracker.handleClientWaypointCommand(args);
+            }
+            return true;
+        }
+        return false;
     }
 
     @Inject(method = "handleParticleEvent", at = @At("HEAD"))

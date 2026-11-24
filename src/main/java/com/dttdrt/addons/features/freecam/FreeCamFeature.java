@@ -6,6 +6,7 @@ import com.dttdrt.addons.core.feature.Feature;
 import com.dttdrt.addons.core.lang.ModLang;
 import com.dttdrt.addons.core.log.ModLogManager;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
+import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -81,7 +82,7 @@ public class FreeCamFeature implements Feature {
 
     @Override
     public void init() {
-        HudElementRegistry.addLast(HUD_ID, (graphics, deltaTracker) -> renderHud(graphics));
+        HudElementRegistry.attachElementAfter(VanillaHudElements.OVERLAY_MESSAGE, HUD_ID, (graphics, deltaTracker) -> renderHud(graphics));
     }
 
     @Override

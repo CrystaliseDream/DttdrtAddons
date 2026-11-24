@@ -5,6 +5,7 @@ import com.dttdrt.addons.core.config.ModConfig;
 import com.dttdrt.addons.core.feature.Feature;
 import com.dttdrt.addons.core.lang.ModLang;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
+import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
@@ -87,7 +88,7 @@ public class CorpseEspFeature implements Feature {
     @Override
     public void init() {
         LevelRenderEvents.BEFORE_GIZMOS.register(context -> renderBoxes());
-        HudElementRegistry.addLast(HUD_ID, (graphics, deltaTracker) -> renderLabels(graphics));
+        HudElementRegistry.attachElementAfter(VanillaHudElements.OVERLAY_MESSAGE, HUD_ID, (graphics, deltaTracker) -> renderLabels(graphics));
     }
 
     @Override

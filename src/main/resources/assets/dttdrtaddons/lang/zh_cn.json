@@ -58,6 +58,7 @@
 
   "dttdrtaddons.mining.ch_map_header": "Crystal Hollows Map",
   "dttdrtaddons.mining.ch_map_enable": "Enable Crystal Hollows Map",
+  "dttdrtaddons.mining.ch_chat_coords": "Lobby Chat Coords to Map",
   "dttdrtaddons.mining.ch_map_edit_hud": "Edit Map HUD Position & Scale",
   "dttdrtaddons.mining.ch_add_waypoint": "Add Waypoint",
   "dttdrtaddons.mining.ch_active_waypoints": "Active Waypoints:",

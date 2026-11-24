@@ -26,6 +26,7 @@
     "accessor.TextColorAccessor",
     "chroma.ChromaBufferSourceMixin",
     "chroma.ChromaGlyphInstanceMixin",
+    "chroma.ChromaGlyphRenderStateMixin",
     "chroma.ChromaGlyphRenderTypesMixin",
     "chroma.ChromaGuiRendererMixin",
     "chroma.ChromaPreparedTextBuilderMixin",

@@ -20,6 +20,8 @@ import com.dttdrt.addons.features.mining.CorpseEspFeature.CorpseType;
 import com.dttdrt.addons.features.mining.CrystalHollowsHudEditScreen;
 import com.dttdrt.addons.features.mining.CrystalHollowsTracker;
 import com.dttdrt.addons.features.mining.CrystalHollowsTracker.CrystalLocation;
+import com.dttdrt.addons.features.mining.CrystalHollowsTracker.CustomWaypoint;
+import com.dttdrt.addons.render.chroma.ChromaRenderState;
 import com.dttdrt.addons.features.mining.GemstoneEspFeature;
 import com.dttdrt.addons.features.mining.GemstoneEspFeature.Gemstone;
 import com.dttdrt.addons.features.mining.LittleFootEspFeature;
@@ -966,12 +968,17 @@ public class DttdrtMainScreen extends Screen {
             hadPrevSection = true;
 
             if (matchesFilter("Mining", "dttdrtaddons.section.mining", "Crystal Hollows Map",
-                    "dttdrtaddons.mining.ch_map_header", "dttdrtaddons.mining.ch_map_enable", "dttdrtaddons.mining.ch_map_edit_hud",
-                    "Waypoint", "HUD")) {
+                    "dttdrtaddons.mining.ch_map_header", "dttdrtaddons.mining.ch_map_enable",
+                    "dttdrtaddons.mining.ch_chat_coords", "dttdrtaddons.mining.ch_map_edit_hud",
+                    "Waypoint", "Coords", "Chat", "Lobby", "HUD")) {
                 curY = drawSubsectionHeader(g, x, curY, ModLang.tr("dttdrtaddons.mining.ch_map_header"), viewTop, viewBottom);
                 curY = drawFormCheckBox(g, 1, "ch_map_enabled", x, curY, w,
                         ModLang.tr("dttdrtaddons.mining.ch_map_enable"), 0,
                         cfg.crystalHollowsMapEnabled, v -> cfg.crystalHollowsMapEnabled = v, viewTop, viewBottom, mouseX, mouseY, dt);
+                curY += ITEM_SPACING_V2;
+                curY = drawFormCheckBox(g, 1, "ch_chat_coords_enabled", x, curY, w,
+                        ModLang.tr("dttdrtaddons.mining.ch_chat_coords"), 0,
+                        cfg.chChatCoordsEnabled, v -> cfg.chChatCoordsEnabled = v, viewTop, viewBottom, mouseX, mouseY, dt);
                 curY += ITEM_SPACING_V2;
                 curY = drawSettingsButtonV2(g, 1, x, curY, w, 38, ModLang.tr("dttdrtaddons.mining.ch_map_edit_hud"),
                         OSU_COLOUR2, viewTop, viewBottom, mouseX, mouseY, () -> {
@@ -2261,12 +2268,20 @@ public class DttdrtMainScreen extends Screen {
             if (isChroma || chromaHover) {
                 OsuUiRenderer.drawRoundedRect(g, innerX - 2, chromaY - 2, innerW + 4, chromaH + 4, 6, isChroma ? OSU_CONTENT1 : OSU_LIGHT4);
             }
-            int slices = 36;
+            int slices = 48;
             float sliceW = innerW / (float) slices;
-            float phase = (System.currentTimeMillis() % 4000L) / 4000.0f;
+            float sat = cfg.chromaEnabled ? Math.max(0.0f, Math.min(1.0f, cfg.chromaSaturation)) : 0.0f;
+            float ticks = ChromaRenderState.getElapsedTicks();
+            String dir = cfg.chromaDirection != null ? cfg.chromaDirection : "FORWARD_RIGHT";
+            if ("FORWARD_LEFT".equalsIgnoreCase(dir) || "BACKWARD_LEFT".equalsIgnoreCase(dir)) {
+                ticks = -ticks;
+            }
+            float timeOffset = cfg.chromaEnabled ? ticks * (cfg.chromaSpeed / 360.0f) : 0.0f;
+            float spanCycles = Math.max(0.15f, innerW / Math.max(8.0f, cfg.chromaSize * 4.5f));
             for (int i = 0; i < slices; i++) {
-                float h = (phase + i / (float) slices) % 1.0f;
-                int c = Color.HSBtoRGB(h, Math.max(0.45f, cfg.chromaSaturation), 0.90f) | 0xFF000000;
+                float rawHue = (i / (float) slices) * spanCycles - timeOffset;
+                float h = rawHue - (float) Math.floor(rawHue);
+                int c = Color.HSBtoRGB(h, sat, 0.92f) | 0xFF000000;
                 OsuUiRenderer.drawSolidRectF(g, innerX + i * sliceW, chromaY, sliceW + 0.6f, chromaH, c);
             }
             OsuUiRenderer.drawRoundedRect(g, innerX, chromaY, innerW, chromaH, 4, 0x55000000);
@@ -2502,6 +2517,20 @@ public class DttdrtMainScreen extends Screen {
                 boolean remHov = (secIdx == activeSectionIdx) && isInside(mouseX, mouseY, remX, nextY + 4, 20, 20);
                 TorusFontRenderer.drawCenteredString(g, Weight.BOLD, "x", remX + 10, nextY + 7, 14f, remHov ? COLOR_DANGER : OSU_GRAY_TEXT);
                 drawerButtons.add(new ButtonHitbox(secIdx, remX, nextY + 4, 20, 20, () -> CrystalHollowsTracker.clearLocation(loc)));
+            }
+            nextY += 32;
+        }
+        for (CustomWaypoint cw : CrystalHollowsTracker.getCustomWaypoints()) {
+            if (isVisible(nextY, 30, viewTop, viewBottom)) {
+                OsuUiRenderer.drawRoundedRect(g, x, nextY, w, 28, 5, OSU_BG5);
+                String text = cw.label + " (" + Math.round(cw.x) + ", " + Math.round(cw.y) + ", " + Math.round(cw.z) + ")";
+                TorusFontRenderer.drawString(g, Weight.REGULAR,
+                        TorusFontRenderer.trimToWidth(Weight.REGULAR, text, w - 38, 13f),
+                        x + 9, nextY + 7, 13f, 0xFF000000 | cw.color);
+                int remX = x + w - 26;
+                boolean remHov = (secIdx == activeSectionIdx) && isInside(mouseX, mouseY, remX, nextY + 4, 20, 20);
+                TorusFontRenderer.drawCenteredString(g, Weight.BOLD, "x", remX + 10, nextY + 7, 14f, remHov ? COLOR_DANGER : OSU_GRAY_TEXT);
+                drawerButtons.add(new ButtonHitbox(secIdx, remX, nextY + 4, 20, 20, () -> CrystalHollowsTracker.removeCustomWaypoint(cw)));
             }
             nextY += 32;
         }

@@ -13,6 +13,7 @@ import com.dttdrt.addons.features.mining.profit.ProfitDataStore;
 import com.dttdrt.addons.texture.PackDisablerIconBridge;
 import com.dttdrt.addons.util.NumberFormatUtils;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
+import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -176,7 +177,7 @@ public class NucleusProfitFeature implements Feature {
 
     @Override
     public void init() {
-        HudElementRegistry.addLast(HUD_ID, (graphics, deltaTracker) -> {
+        HudElementRegistry.attachElementAfter(VanillaHudElements.OVERLAY_MESSAGE, HUD_ID, (graphics, deltaTracker) -> {
             Minecraft mc = Minecraft.getInstance();
             if (!WhitelistManager.isAuthorized() || !isEnabled()) return;
             if (mc.player == null || mc.level == null || mc.options.hideGui) return;
