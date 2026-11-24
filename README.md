@@ -1,5 +1,7 @@
 # DttdrtAddons
 
+Only Client Side
+
 v1.0.0(1)
 ah / bz tools
 Nucleus Runs Helper
